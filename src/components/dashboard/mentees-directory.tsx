@@ -16,11 +16,27 @@ import { NotesWorkspace } from "@/components/mentee-area/notes-workspace";
 import type { ApprovedMentee, MenteeLink, MenteeNote, Plan } from "@/lib/types";
 import { formatFullDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { ExternalLink, Loader2, Maximize2, Minimize2, NotebookPen, Plus, Trash2 } from "lucide-react";
+import {
+  CalendarClock,
+  CalendarX2,
+  CheckCircle2,
+  ExternalLink,
+  Loader2,
+  Maximize2,
+  Minimize2,
+  NotebookPen,
+  Plus,
+  Trash2,
+} from "lucide-react";
 
 const initialState: LinkFormState = { status: "idle" };
 
-export type MenteeWithDetails = ApprovedMentee & { plan: Plan | null; links: MenteeLink[] };
+export type MenteeWithDetails = ApprovedMentee & {
+  plan: Plan | null;
+  links: MenteeLink[];
+  completedCalls: number;
+  daysRemaining: number | null;
+};
 
 export function MenteesDirectory({ mentees }: { mentees: MenteeWithDetails[] }) {
   if (mentees.length === 0) {
@@ -111,6 +127,29 @@ function MenteeCard({ mentee }: { mentee: MenteeWithDetails }) {
           {loadingNotes ? <Loader2 className="size-3.5 animate-spin" /> : <NotebookPen className="size-3.5" />}
           Anotações
         </Button>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-4 border-t border-border pt-3 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          <CheckCircle2 className="size-3.5 text-success" />
+          {mentee.completedCalls} {mentee.completedCalls === 1 ? "chamada realizada" : "chamadas realizadas"}
+        </span>
+        <span className="flex items-center gap-1.5">
+          {mentee.daysRemaining === null ? (
+            <>
+              <CalendarClock className="size-3.5" /> Sem prazo definido
+            </>
+          ) : mentee.daysRemaining < 0 ? (
+            <>
+              <CalendarX2 className="size-3.5 text-destructive" /> Plano expirado
+            </>
+          ) : (
+            <>
+              <CalendarClock className="size-3.5" /> {mentee.daysRemaining}{" "}
+              {mentee.daysRemaining === 1 ? "dia restante" : "dias restantes"}
+            </>
+          )}
+        </span>
       </div>
 
       {mentee.user_id && (

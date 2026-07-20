@@ -30,7 +30,7 @@ export default async function AgendarPage({
 
   const now = new Date();
 
-  const mentors: MentorOption[] = await Promise.all(
+  const mentorsWithEmpty: MentorOption[] = await Promise.all(
     ((profiles as Profile[]) ?? []).map(async (profile) => {
       const windowEnd = addDays(now, profile.booking_window_days);
 
@@ -61,6 +61,10 @@ export default async function AgendarPage({
       };
     }),
   );
+
+  // Mentor sem nenhum horário configurado nem aparece na lista pro
+  // mentorado escolher — evita mostrar alguém sem nada disponível.
+  const mentors = mentorsWithEmpty.filter((m) => m.rules.length > 0 || m.dateRules.length > 0);
 
   const menteeSession = await getMenteeSession();
   let upcomingBooking: { startsAt: string; mentorName: string; timezone: string } | null = null;

@@ -1,6 +1,8 @@
+import { addDays } from "date-fns";
 import { MenteesDirectory, type MenteeWithDetails } from "@/components/dashboard/mentees-directory";
 import { requireMentor } from "@/lib/session";
-import type { ApprovedMentee, MenteeLink, Plan } from "@/lib/types";
+import { createAdminClient } from "@/lib/supabase/admin";
+import type { ApprovedMentee, Booking, MenteeLink, Plan } from "@/lib/types";
 
 export default async function MentoradosPage() {
   const { supabase } = await requireMentor();
@@ -27,13 +29,45 @@ export default async function MentoradosPage() {
     linksByMentee.set(link.mentee_id, list);
   }
 
-  const menteesWithDetails: MenteeWithDetails[] = ((mentees as ApprovedMentee[]) ?? []).map(
-    (mentee) => ({
+  const menteeList = (mentees as ApprovedMentee[]) ?? [];
+
+  // Chamadas realizadas contam em qualquer mentor da equipe, não só nas
+  // próprias do mentor logado — precisa da service role pra enxergar tudo.
+  const completedByEmail = new Map<string, number>();
+  if (menteeList.length > 0) {
+    const admin = createAdminClient();
+    const emails = menteeList.map((m) => m.email);
+    const { data: bookings } = await admin
+      .from("bookings")
+      .select("mentee_email, status")
+      .in("mentee_email", emails)
+      .eq("status", "concluida");
+
+    for (const booking of (bookings as Pick<Booking, "mentee_email" | "status">[]) ?? []) {
+      completedByEmail.set(booking.mentee_email, (completedByEmail.get(booking.mentee_email) ?? 0) + 1);
+    }
+  }
+
+  const now = new Date();
+
+  const menteesWithDetails: MenteeWithDetails[] = menteeList.map((mentee) => {
+    const plan = mentee.plan_id ? (plansById.get(mentee.plan_id) ?? null) : null;
+    const daysRemaining = plan?.duration_days
+      ? Math.ceil(
+          (addDays(new Date(`${mentee.starts_at}T00:00:00`), plan.duration_days).getTime() -
+            now.getTime()) /
+            (1000 * 60 * 60 * 24),
+        )
+      : null;
+
+    return {
       ...mentee,
-      plan: mentee.plan_id ? (plansById.get(mentee.plan_id) ?? null) : null,
+      plan,
       links: linksByMentee.get(mentee.id) ?? [],
-    }),
-  );
+      completedCalls: completedByEmail.get(mentee.email) ?? 0,
+      daysRemaining,
+    };
+  });
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
