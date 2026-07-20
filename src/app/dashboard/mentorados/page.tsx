@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { ApprovedMentee, Booking, MenteeLink, Plan } from "@/lib/types";
 
 export default async function MentoradosPage() {
-  const { supabase } = await requireMentor();
+  const { supabase, profile } = await requireMentor();
 
   const [{ data: mentees }, { data: plans }, { data: links }] = await Promise.all([
     // Só quem foi aprovado como mentorado — mentores/admins também vivem em
@@ -52,9 +52,11 @@ export default async function MentoradosPage() {
 
   const menteesWithDetails: MenteeWithDetails[] = menteeList.map((mentee) => {
     const plan = mentee.plan_id ? (plansById.get(mentee.plan_id) ?? null) : null;
-    const daysRemaining = plan?.duration_days
+    const effectiveDurationDays = mentee.duration_days_override ?? plan?.duration_days ?? null;
+    const effectiveTotalCalls = mentee.total_calls_override ?? plan?.total_calls ?? null;
+    const daysRemaining = effectiveDurationDays
       ? Math.ceil(
-          (addDays(new Date(`${mentee.starts_at}T00:00:00`), plan.duration_days).getTime() -
+          (addDays(new Date(`${mentee.starts_at}T00:00:00`), effectiveDurationDays).getTime() -
             now.getTime()) /
             (1000 * 60 * 60 * 24),
         )
@@ -66,6 +68,7 @@ export default async function MentoradosPage() {
       links: linksByMentee.get(mentee.id) ?? [],
       completedCalls: completedByEmail.get(mentee.email) ?? 0,
       daysRemaining,
+      effectiveTotalCalls,
     };
   });
 
@@ -79,7 +82,7 @@ export default async function MentoradosPage() {
         </p>
       </div>
 
-      <MenteesDirectory mentees={menteesWithDetails} />
+      <MenteesDirectory mentees={menteesWithDetails} isAdmin={profile.is_admin} />
     </div>
   );
 }

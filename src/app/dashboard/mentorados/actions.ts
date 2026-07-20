@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/admin";
 
 export interface LinkFormState {
   status: "idle" | "success" | "error";
@@ -56,4 +57,27 @@ export async function removeMenteeLink(id: string) {
   if (error) throw new Error("Não foi possível remover o link.");
 
   revalidatePath("/dashboard/mentorados");
+}
+
+/** Só admin: ajusta total de chamadas / dias de acesso de um mentorado
+ * específico, sobrepondo o valor do plano dele (sem afetar outros
+ * mentorados no mesmo plano). Passe null pra voltar a usar o valor do plano. */
+export async function updateMenteeOverrides(
+  menteeId: string,
+  overrides: { totalCalls: number | null; durationDays: number | null },
+) {
+  const supabase = await requireAdmin();
+
+  const { error } = await supabase
+    .from("approved_mentees")
+    .update({
+      total_calls_override: overrides.totalCalls,
+      duration_days_override: overrides.durationDays,
+    })
+    .eq("id", menteeId);
+
+  if (error) throw new Error("Não foi possível salvar os ajustes.");
+
+  revalidatePath("/dashboard/mentorados");
+  revalidatePath("/agendar");
 }

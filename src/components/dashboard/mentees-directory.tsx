@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import {
   addMenteeLink,
   removeMenteeLink,
+  updateMenteeOverrides,
   type LinkFormState,
 } from "@/app/dashboard/mentorados/actions";
 import { listMenteeNotes } from "@/app/agendar/anotacoes/actions";
@@ -25,6 +26,7 @@ import {
   Maximize2,
   Minimize2,
   NotebookPen,
+  Pencil,
   Plus,
   Trash2,
 } from "lucide-react";
@@ -36,9 +38,16 @@ export type MenteeWithDetails = ApprovedMentee & {
   links: MenteeLink[];
   completedCalls: number;
   daysRemaining: number | null;
+  effectiveTotalCalls: number | null;
 };
 
-export function MenteesDirectory({ mentees }: { mentees: MenteeWithDetails[] }) {
+export function MenteesDirectory({
+  mentees,
+  isAdmin = false,
+}: {
+  mentees: MenteeWithDetails[];
+  isAdmin?: boolean;
+}) {
   if (mentees.length === 0) {
     return (
       <p className="rounded-2xl border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
@@ -50,13 +59,13 @@ export function MenteesDirectory({ mentees }: { mentees: MenteeWithDetails[] }) 
   return (
     <div className="space-y-3">
       {mentees.map((mentee) => (
-        <MenteeCard key={mentee.id} mentee={mentee} />
+        <MenteeCard key={mentee.id} mentee={mentee} isAdmin={isAdmin} />
       ))}
     </div>
   );
 }
 
-function MenteeCard({ mentee }: { mentee: MenteeWithDetails }) {
+function MenteeCard({ mentee, isAdmin }: { mentee: MenteeWithDetails; isAdmin: boolean }) {
   const [showForm, setShowForm] = useState(false);
   const [formKey, setFormKey] = useState(0);
   const [state, formAction, pending] = useActionState(addMenteeLink, initialState);
@@ -66,6 +75,10 @@ function MenteeCard({ mentee }: { mentee: MenteeWithDetails }) {
   const [notes, setNotes] = useState<MenteeNote[] | null>(null);
   const [loadingNotes, setLoadingNotes] = useState(false);
   const [notesMaximized, setNotesMaximized] = useState(true);
+  const [editingLimits, setEditingLimits] = useState(false);
+  const [totalCallsInput, setTotalCallsInput] = useState(mentee.total_calls_override?.toString() ?? "");
+  const [durationInput, setDurationInput] = useState(mentee.duration_days_override?.toString() ?? "");
+  const [isSavingLimits, startSavingLimits] = useTransition();
 
   // Reage ao resultado da Server Action (fonte externa via useActionState),
   // não a um valor derivável durante a renderização.
@@ -87,6 +100,21 @@ function MenteeCard({ mentee }: { mentee: MenteeWithDetails }) {
         toast.error("Não foi possível remover.");
       } finally {
         setRemovingId(null);
+      }
+    });
+  }
+
+  function handleSaveLimits() {
+    const totalCalls = totalCallsInput.trim() === "" ? null : Number.parseInt(totalCallsInput, 10);
+    const durationDays = durationInput.trim() === "" ? null : Number.parseInt(durationInput, 10);
+
+    startSavingLimits(async () => {
+      try {
+        await updateMenteeOverrides(mentee.id, { totalCalls, durationDays });
+        toast.success("Limites atualizados.");
+        setEditingLimits(false);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Não foi possível salvar.");
       }
     });
   }
@@ -132,7 +160,9 @@ function MenteeCard({ mentee }: { mentee: MenteeWithDetails }) {
       <div className="mt-3 flex flex-wrap items-center gap-4 border-t border-border pt-3 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
           <CheckCircle2 className="size-3.5 text-success" />
-          {mentee.completedCalls} {mentee.completedCalls === 1 ? "chamada realizada" : "chamadas realizadas"}
+          {mentee.completedCalls}
+          {mentee.effectiveTotalCalls ? ` / ${mentee.effectiveTotalCalls}` : ""}{" "}
+          {mentee.completedCalls === 1 ? "chamada realizada" : "chamadas realizadas"}
         </span>
         <span className="flex items-center gap-1.5">
           {mentee.daysRemaining === null ? (
@@ -150,7 +180,66 @@ function MenteeCard({ mentee }: { mentee: MenteeWithDetails }) {
             </>
           )}
         </span>
+        {isAdmin && !editingLimits && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => setEditingLimits(true)}
+            className="text-muted-foreground hover:text-foreground"
+            title="Editar limites deste mentorado"
+          >
+            <Pencil className="size-3.5" />
+          </Button>
+        )}
       </div>
+
+      {isAdmin && editingLimits && (
+        <div className="mt-2 flex flex-wrap items-end gap-2 rounded-xl border border-border bg-muted/30 p-3">
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Total de chamadas</label>
+            <Input
+              type="number"
+              min={1}
+              placeholder={mentee.plan?.total_calls ? String(mentee.plan.total_calls) : "Sem limite"}
+              value={totalCallsInput}
+              onChange={(e) => setTotalCallsInput(e.target.value)}
+              className="w-32"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Dias de acesso</label>
+            <Input
+              type="number"
+              min={1}
+              placeholder={mentee.plan?.duration_days ? String(mentee.plan.duration_days) : "Sem prazo"}
+              value={durationInput}
+              onChange={(e) => setDurationInput(e.target.value)}
+              className="w-32"
+            />
+          </div>
+          <Button type="button" size="sm" onClick={handleSaveLimits} disabled={isSavingLimits} className="gap-1.5">
+            {isSavingLimits && <Loader2 className="size-3.5 animate-spin" />}
+            Salvar
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setEditingLimits(false);
+              setTotalCallsInput(mentee.total_calls_override?.toString() ?? "");
+              setDurationInput(mentee.duration_days_override?.toString() ?? "");
+            }}
+            disabled={isSavingLimits}
+          >
+            Cancelar
+          </Button>
+          <p className="w-full text-[11px] text-muted-foreground">
+            Deixe em branco pra usar o valor padrão do plano ({mentee.plan?.name ?? "sem plano"}).
+          </p>
+        </div>
+      )}
 
       {mentee.user_id && (
         <Dialog open={notesOpen} onOpenChange={setNotesOpen}>

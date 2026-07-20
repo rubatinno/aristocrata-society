@@ -61,9 +61,12 @@ export default async function MenteeHistoricoPage() {
     plan = data;
   }
 
+  const effectiveDurationDays = approval?.duration_days_override ?? plan?.duration_days ?? null;
+  const effectiveTotalCalls = approval?.total_calls_override ?? plan?.total_calls ?? null;
+
   const expiresAt =
-    approval && plan?.duration_days
-      ? addDays(new Date(`${approval.starts_at}T00:00:00`), plan.duration_days)
+    approval && effectiveDurationDays
+      ? addDays(new Date(`${approval.starts_at}T00:00:00`), effectiveDurationDays)
       : null;
 
   const completedCount = bookings.filter((b) => b.status === "concluida").length;
@@ -91,7 +94,7 @@ export default async function MenteeHistoricoPage() {
             <dt className="text-xs text-muted-foreground">Chamadas realizadas</dt>
             <dd className="font-medium">
               {completedCount}
-              {plan?.total_calls ? ` / ${plan.total_calls}` : ""}
+              {effectiveTotalCalls ? ` / ${effectiveTotalCalls}` : ""}
             </dd>
           </div>
           <div>

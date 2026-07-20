@@ -102,8 +102,13 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
   const requestedStart = new Date(input.startsAt);
   const now = new Date();
 
-  if (plan?.duration_days) {
-    const expiresAt = addDays(new Date(`${approval.starts_at}T00:00:00`), plan.duration_days);
+  // Um admin pode ajustar total de chamadas/duração por mentorado direto em
+  // Mentorados, sem precisar mexer no plano (que afetaria todo mundo nele).
+  const effectiveDurationDays = approval.duration_days_override ?? plan?.duration_days ?? null;
+  const effectiveTotalCalls = approval.total_calls_override ?? plan?.total_calls ?? null;
+
+  if (effectiveDurationDays) {
+    const expiresAt = addDays(new Date(`${approval.starts_at}T00:00:00`), effectiveDurationDays);
     if (now > expiresAt) {
       return {
         ok: false,
@@ -112,9 +117,9 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
     }
   }
 
-  if (plan?.total_calls) {
+  if (effectiveTotalCalls) {
     const total = await countBookings(admin, menteeEmail);
-    if (total >= plan.total_calls) {
+    if (total >= effectiveTotalCalls) {
       return { ok: false, message: "Você atingiu o limite total de chamadas do seu plano." };
     }
   }

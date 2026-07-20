@@ -77,6 +77,8 @@ export type ApprovedMentee = {
   starts_at: string; // yyyy-MM-dd
   added_by: string | null;
   created_at: string;
+  total_calls_override: number | null;
+  duration_days_override: number | null;
 };
 
 export type MenteeProfile = {
@@ -169,12 +171,17 @@ export type Database = {
       };
       approved_mentees: {
         Row: ApprovedMentee;
-        Insert: Omit<ApprovedMentee, "id" | "created_at" | "starts_at" | "role" | "user_id"> & {
+        Insert: Omit<
+          ApprovedMentee,
+          "id" | "created_at" | "starts_at" | "role" | "user_id" | "total_calls_override" | "duration_days_override"
+        > & {
           id?: string;
           created_at?: string;
           starts_at?: string;
           role?: MemberRole | null;
           user_id?: string | null;
+          total_calls_override?: number | null;
+          duration_days_override?: number | null;
         };
         Update: Partial<ApprovedMentee>;
         Relationships: [];
