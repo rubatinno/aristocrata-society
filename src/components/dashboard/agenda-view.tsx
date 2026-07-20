@@ -8,7 +8,7 @@ import { BookingRow } from "@/components/dashboard/booking-row";
 import { BookingActions } from "@/components/dashboard/booking-actions";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import type { Booking } from "@/lib/types";
-import { CalendarDays, CalendarCheck2, CalendarX2, Search, X } from "lucide-react";
+import { CalendarClock, CalendarDays, CalendarCheck2, CalendarX2, Search, X } from "lucide-react";
 
 function matchesSearch(booking: Booking, query: string) {
   if (!query) return true;
@@ -25,11 +25,13 @@ function matchesDateRange(booking: Booking, from: string, to: string) {
 
 export function AgendaView({
   upcoming,
+  pending,
   past,
   cancelled,
   timeZone,
 }: {
   upcoming: Booking[];
+  pending: Booking[];
   past: Booking[];
   cancelled: Booking[];
   timeZone: string;
@@ -51,10 +53,11 @@ export function AgendaView({
       list.filter((b) => matchesSearch(b, query) && matchesDateRange(b, from, to));
     return {
       upcoming: apply(upcoming),
+      pending: apply(pending),
       past: apply(past),
       cancelled: apply(cancelled),
     };
-  }, [upcoming, past, cancelled, query, from, to]);
+  }, [upcoming, pending, past, cancelled, query, from, to]);
 
   return (
     <div className="space-y-4">
@@ -78,9 +81,10 @@ export function AgendaView({
         )}
       </div>
 
-      <Tabs defaultValue="upcoming">
+      <Tabs defaultValue={pending.length > 0 ? "pending" : "upcoming"}>
         <TabsList>
           <TabsTrigger value="upcoming">A realizar ({filtered.upcoming.length})</TabsTrigger>
+          <TabsTrigger value="pending">Pendentes ({filtered.pending.length})</TabsTrigger>
           <TabsTrigger value="past">Histórico ({filtered.past.length})</TabsTrigger>
           <TabsTrigger value="cancelled">Canceladas ({filtered.cancelled.length})</TabsTrigger>
         </TabsList>
@@ -108,6 +112,30 @@ export function AgendaView({
           )}
         </TabsContent>
 
+        <TabsContent value="pending" className="mt-4 space-y-2">
+          {filtered.pending.length === 0 ? (
+            <EmptyState
+              icon={CalendarClock}
+              title={hasFilters ? "Nada encontrado" : "Nenhuma call pendente"}
+              description={
+                hasFilters
+                  ? "Tente ajustar a busca ou o período."
+                  : "Calls cujo horário já passou ficam aqui até você marcar como concluída, não compareceu ou cancelada."
+              }
+            />
+          ) : (
+            filtered.pending.map((booking) => (
+              <BookingRow
+                key={booking.id}
+                booking={booking}
+                timeZone={timeZone}
+                pending
+                actions={<BookingActions bookingId={booking.id} />}
+              />
+            ))
+          )}
+        </TabsContent>
+
         <TabsContent value="past" className="mt-4 space-y-2">
           {filtered.past.length === 0 ? (
             <EmptyState
@@ -116,7 +144,7 @@ export function AgendaView({
               description={
                 hasFilters
                   ? "Tente ajustar a busca ou o período."
-                  : "Suas mentorias concluídas ou que já passaram do horário aparecem aqui."
+                  : "Suas mentorias concluídas ou marcadas como não compareceu aparecem aqui."
               }
             />
           ) : (

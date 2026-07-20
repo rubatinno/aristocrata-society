@@ -8,13 +8,14 @@ export default async function AgendaPage() {
   const now = new Date();
 
   const upcoming = bookings.filter((b) => b.status === "confirmada" && new Date(b.starts_at) >= now);
+  // Já passou do horário e o mentor ainda não disse se rolou ou não — fica
+  // separado do histórico até alguém resolver, com os botões de ação ainda
+  // disponíveis (no histórico normal eles somem, de propósito).
+  const pending = bookings
+    .filter((b) => b.status === "confirmada" && new Date(b.starts_at) < now)
+    .sort((a, b) => new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime());
   const past = bookings
-    .filter(
-      (b) =>
-        b.status === "concluida" ||
-        b.status === "no_show" ||
-        (b.status === "confirmada" && new Date(b.starts_at) < now),
-    )
+    .filter((b) => b.status === "concluida" || b.status === "no_show")
     .sort((a, b) => new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime());
   const cancelled = bookings
     .filter((b) => b.status === "cancelada")
@@ -29,7 +30,13 @@ export default async function AgendaPage() {
         </p>
       </div>
 
-      <AgendaView upcoming={upcoming} past={past} cancelled={cancelled} timeZone={profile.timezone} />
+      <AgendaView
+        upcoming={upcoming}
+        pending={pending}
+        past={past}
+        cancelled={cancelled}
+        timeZone={profile.timezone}
+      />
     </div>
   );
 }

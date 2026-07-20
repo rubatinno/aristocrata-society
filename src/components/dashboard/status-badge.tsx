@@ -16,7 +16,15 @@ const LABELS: Record<BookingStatus, string> = {
   no_show: "Não compareceu",
 };
 
-export function StatusBadge({ status }: { status: BookingStatus }) {
+export function StatusBadge({ status, pending }: { status: BookingStatus; pending?: boolean }) {
+  if (pending) {
+    return (
+      <Badge variant="outline" className="rounded-full border-amber-500/30 bg-amber-500/10 font-medium text-amber-600 dark:text-amber-400">
+        Pendente
+      </Badge>
+    );
+  }
+
   return (
     <Badge variant="outline" className={cn("rounded-full font-medium", STYLES[status])}>
       {LABELS[status]}

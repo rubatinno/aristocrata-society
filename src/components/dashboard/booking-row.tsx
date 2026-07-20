@@ -14,11 +14,13 @@ export function BookingRow({
   timeZone,
   actions,
   mentorName,
+  pending,
 }: {
   booking: Booking;
   timeZone: string;
   actions?: React.ReactNode;
   mentorName?: string;
+  pending?: boolean;
 }) {
   return (
     <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-4">
@@ -31,7 +33,7 @@ export function BookingRow({
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <p className="truncate text-sm font-medium">{booking.mentee_name}</p>
-          <StatusBadge status={booking.status} />
+          <StatusBadge status={booking.status} pending={pending} />
           {mentorName && (
             <span className="truncate rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
               {mentorName}
