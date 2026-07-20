@@ -1,7 +1,10 @@
+import Link from "next/link";
 import { MentorsTeamList } from "@/components/dashboard/mentors-team-list";
+import { buttonVariants } from "@/components/ui/button";
 import { requireMentor } from "@/lib/session";
 import type { Profile } from "@/lib/types";
-import { ShieldAlert } from "lucide-react";
+import { ShieldAlert, UserPlus } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default async function EquipePage() {
   const { supabase, profile } = await requireMentor();
@@ -20,11 +23,19 @@ export default async function EquipePage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Equipe</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Mentores com acesso ao painel. Para adicionar alguém novo, use a página de Aprovações.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Equipe</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Mentores com acesso ao painel. Promova/remova admin ou remova alguém da equipe.
+          </p>
+        </div>
+        <Link
+          href="/dashboard/aprovacoes"
+          className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5")}
+        >
+          <UserPlus className="size-3.5" /> Convidar mentor
+        </Link>
       </div>
 
       <MentorsTeamList mentors={(mentors as Profile[]) ?? []} currentUserId={profile.id} />

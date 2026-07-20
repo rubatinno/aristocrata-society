@@ -3,9 +3,11 @@
 import { useTransition } from "react";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { setMentorAdmin } from "@/app/dashboard/equipe/actions";
+import { setMentorAdmin, removeMentor } from "@/app/dashboard/equipe/actions";
 import type { Profile } from "@/lib/types";
+import { Loader2, Trash2 } from "lucide-react";
 
 function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -24,15 +26,35 @@ export function MentorsTeamList({ mentors, currentUserId }: { mentors: Profile[]
 }
 
 function MentorRow({ mentor, isSelf }: { mentor: Profile; isSelf: boolean }) {
-  const [isPending, startTransition] = useTransition();
+  const [isTogglingAdmin, startTogglingAdmin] = useTransition();
+  const [isRemoving, startRemoving] = useTransition();
 
   function handleToggle(checked: boolean) {
-    startTransition(async () => {
+    startTogglingAdmin(async () => {
       try {
         await setMentorAdmin(mentor.id, checked);
         toast.success(checked ? "Agora é admin." : "Admin removido.");
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Não foi possível atualizar.");
+      }
+    });
+  }
+
+  function handleRemove() {
+    if (
+      !window.confirm(
+        `Remover ${mentor.full_name || "esse mentor"} da equipe? Isso também apaga o histórico de mentorias dele(a). Essa ação não pode ser desfeita.`,
+      )
+    ) {
+      return;
+    }
+
+    startRemoving(async () => {
+      try {
+        await removeMentor(mentor.id);
+        toast.success("Mentor removido da equipe.");
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Não foi possível remover.");
       }
     });
   }
@@ -53,8 +75,21 @@ function MentorRow({ mentor, isSelf }: { mentor: Profile; isSelf: boolean }) {
       </div>
       <div className="flex items-center gap-2">
         <span className="text-xs text-muted-foreground">Admin</span>
-        <Switch checked={mentor.is_admin} onCheckedChange={handleToggle} disabled={isPending} />
+        <Switch checked={mentor.is_admin} onCheckedChange={handleToggle} disabled={isTogglingAdmin || isRemoving} />
       </div>
+      {!isSelf && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={handleRemove}
+          disabled={isTogglingAdmin || isRemoving}
+          className="text-muted-foreground hover:text-destructive"
+          title="Remover da equipe"
+        >
+          {isRemoving ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+        </Button>
+      )}
     </div>
   );
 }

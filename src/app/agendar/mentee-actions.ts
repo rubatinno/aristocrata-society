@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { detectRoleMismatch } from "@/lib/role-guard";
+import { getTrustedUser } from "@/lib/auth-header";
 import { isMenteeProfileComplete, type MenteeProfile } from "@/lib/types";
 
 export interface MenteeAuthState {
@@ -90,10 +91,7 @@ export interface MenteeSession {
 
 export async function getMenteeSession(): Promise<MenteeSession | null> {
   const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getTrustedUser(supabase);
 
   if (!user) return null;
 
@@ -105,7 +103,7 @@ export async function getMenteeSession(): Promise<MenteeSession | null> {
 
   return {
     userId: user.id,
-    email: user.email ?? "",
+    email: user.email,
     profile: profile ?? null,
     isComplete: profile ? isMenteeProfileComplete(profile) : false,
   };

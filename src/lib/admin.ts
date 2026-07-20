@@ -1,13 +1,11 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import { getTrustedUser } from "@/lib/auth-header";
 
 /** Retorna o client autenticado + garante que o usuário atual é admin. */
 export async function requireAdmin() {
   const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getTrustedUser(supabase);
 
   if (!user) throw new Error("Não autenticado.");
 

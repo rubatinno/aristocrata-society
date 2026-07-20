@@ -1,4 +1,4 @@
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isSupabaseConfigured, supabaseAnonKey, supabaseUrl } from "@/lib/supabase/env";
 
@@ -9,7 +9,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  let response = NextResponse.next({ request });
+  let cookiesToApply: { name: string; value: string; options: CookieOptions }[] = [];
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
@@ -18,10 +18,7 @@ export async function proxy(request: NextRequest) {
       },
       setAll(cookiesToSet) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-        response = NextResponse.next({ request });
-        cookiesToSet.forEach(({ name, value, options }) =>
-          response.cookies.set(name, value, options),
-        );
+        cookiesToApply = cookiesToSet;
       },
     },
   });
@@ -48,6 +45,22 @@ export async function proxy(request: NextRequest) {
   if (request.method === "GET" && request.nextUrl.pathname === "/login" && user) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
+
+  // Repassa o id do usuário já validado via header — evita que cada página
+  // precise chamar auth.getUser() de novo (um round-trip a mais pro servidor
+  // de autenticação do Supabase a cada navegação). Sempre remove primeiro
+  // qualquer valor vindo do próprio cliente antes de definir o nosso, senão
+  // dava pra forjar esse header numa requisição direta.
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.delete("x-user-id");
+  requestHeaders.delete("x-user-email");
+  if (user) {
+    requestHeaders.set("x-user-id", user.id);
+    if (user.email) requestHeaders.set("x-user-email", user.email);
+  }
+
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  cookiesToApply.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
 
   return response;
 }

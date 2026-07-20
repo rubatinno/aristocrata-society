@@ -1,15 +1,13 @@
 import "server-only";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getTrustedUser } from "@/lib/auth-header";
 import type { Profile } from "@/lib/types";
 
 /** Garante um usuário autenticado com perfil de mentor já criado. */
 export async function requireMentor() {
   const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getTrustedUser(supabase);
 
   if (!user) {
     redirect("/login");

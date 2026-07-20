@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getTrustedUser } from "@/lib/auth-header";
 import { OnboardingForm } from "@/components/onboarding/onboarding-form";
 import { SupabaseSetupNotice } from "@/components/setup-notice";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
@@ -12,10 +13,7 @@ export default async function OnboardingPage() {
   }
 
   const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getTrustedUser(supabase);
 
   if (!user) redirect("/login");
 

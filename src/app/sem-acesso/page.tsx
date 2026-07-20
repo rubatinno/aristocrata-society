@@ -1,15 +1,13 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getTrustedUser } from "@/lib/auth-header";
 import { LogoMark } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { ShieldAlert } from "lucide-react";
 
 export default async function SemAcessoPage() {
   const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getTrustedUser(supabase);
 
   if (!user) redirect("/login");
 
