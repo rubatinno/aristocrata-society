@@ -170,7 +170,7 @@ export function NotesWorkspace({
   }
 
   return (
-    <div className={cn("flex flex-col lg:flex-row", className)}>
+    <div className={cn("flex min-h-0 flex-col lg:flex-row", className)}>
       <div className="flex w-full shrink-0 flex-col border-b border-border lg:h-full lg:w-64 lg:border-r lg:border-b-0">
         <div className="flex items-center justify-between px-4 py-4">
           <h2 className="text-sm font-semibold">Anotações</h2>
