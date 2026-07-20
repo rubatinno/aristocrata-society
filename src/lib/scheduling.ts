@@ -97,10 +97,10 @@ export function buildDaySlots({
         areIntervalsOverlapping({ start: cursor, end: slotEnd }, busy, { inclusive: false }),
       );
 
-      // Horários passados/muito em cima da hora continuam ocultos; horários
-      // ocupados aparecem na lista, só desabilitados (cinza).
-      if (!isBefore(cursor, earliestStart)) {
-        slots.push({ startsAt: cursor, endsAt: slotEnd, busy: overlapsBusy });
+      // Horário passado/muito em cima da hora ou já preenchido: nem aparece
+      // na lista — só mostra o que está realmente disponível agora.
+      if (!isBefore(cursor, earliestStart) && !overlapsBusy) {
+        slots.push({ startsAt: cursor, endsAt: slotEnd, busy: false });
       }
 
       cursor = addMinutes(cursor, step);
