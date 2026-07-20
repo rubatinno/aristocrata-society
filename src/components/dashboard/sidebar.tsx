@@ -12,6 +12,7 @@ import {
   Layers,
   ShieldCheck,
   UsersRound,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 import { LogoMark } from "@/components/logo";
@@ -34,6 +35,7 @@ const adminLinks: NavLink[] = [
   { href: "/dashboard/aprovacoes", label: "Aprovações", icon: ShieldCheck },
   { href: "/dashboard/equipe", label: "Equipe", icon: UsersRound },
   { href: "/dashboard/planos", label: "Planos", icon: Layers },
+  { href: "/dashboard/financeiro", label: "Financeiro", icon: Wallet },
 ];
 
 function NavIcon({ link }: { link: NavLink }) {

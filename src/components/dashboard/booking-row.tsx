@@ -13,10 +13,12 @@ export function BookingRow({
   booking,
   timeZone,
   actions,
+  mentorName,
 }: {
   booking: Booking;
   timeZone: string;
   actions?: React.ReactNode;
+  mentorName?: string;
 }) {
   return (
     <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-4">
@@ -30,6 +32,11 @@ export function BookingRow({
         <div className="flex flex-wrap items-center gap-2">
           <p className="truncate text-sm font-medium">{booking.mentee_name}</p>
           <StatusBadge status={booking.status} />
+          {mentorName && (
+            <span className="truncate rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+              {mentorName}
+            </span>
+          )}
         </div>
         <p className="mt-0.5 truncate text-xs text-muted-foreground">
           {formatDateTime(new Date(booking.starts_at), timeZone)} · {booking.mentee_email}
