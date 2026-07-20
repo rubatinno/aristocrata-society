@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent, type ReactNode } from "react";
+import { toast } from "sonner";
 import { useEditor, useEditorState, EditorContent } from "@tiptap/react";
 import type { EditorView } from "@tiptap/pm/view";
 import StarterKit from "@tiptap/starter-kit";
@@ -11,6 +12,7 @@ import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import { FontSize } from "@/components/mentee-area/font-size-extension";
 import { ResizableImage } from "@/components/mentee-area/resizable-image";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Bold,
@@ -52,6 +54,8 @@ export function RichNoteEditor({
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
+  const [linkPopoverOpen, setLinkPopoverOpen] = useState(false);
+  const [linkValue, setLinkValue] = useState("");
 
   async function insertImageFile(file: File, view: EditorView, pos: number) {
     const formData = new FormData();
@@ -62,7 +66,7 @@ export function RichNoteEditor({
       if (!node) return;
       view.dispatch(view.state.tr.insert(pos, node));
     } catch {
-      window.alert("Não foi possível enviar a imagem. Tente novamente.");
+      toast.error("Não foi possível enviar a imagem. Tente novamente.");
     }
   }
 
@@ -135,15 +139,33 @@ export function RichNoteEditor({
 
   if (!editor) return null;
 
-  function setLink() {
+  // Popover próprio em vez de window.prompt: um diálogo nativo do navegador
+  // aberto por cima do diálogo de anotações (Base UI) pode confundir a
+  // lógica de "clique fora fecha" e fechar o diálogo inteiro sozinho.
+  function openLinkPopover() {
     const previousUrl = editor?.getAttributes("link").href as string | undefined;
-    const url = window.prompt("URL do link", previousUrl ?? "https://");
-    if (url === null) return;
-    if (url.trim() === "") {
+    setLinkValue(previousUrl ?? "");
+    setLinkPopoverOpen(true);
+  }
+
+  function applyLink() {
+    const url = linkValue.trim();
+    if (url === "") {
       editor?.chain().focus().extendMarkRange("link").unsetLink().run();
-      return;
+    } else {
+      editor?.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
     }
-    editor?.chain().focus().extendMarkRange("link").setLink({ href: url.trim() }).run();
+    setLinkPopoverOpen(false);
+  }
+
+  function handleLinkKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      applyLink();
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      setLinkPopoverOpen(false);
+    }
   }
 
   function applyFontSize(size: number) {
@@ -162,7 +184,7 @@ export function RichNoteEditor({
       const url = await uploadNoteImage(menteeId, formData);
       editor.chain().focus().setImage({ src: url }).run();
     } catch {
-      window.alert("Não foi possível enviar a imagem. Tente novamente.");
+      toast.error("Não foi possível enviar a imagem. Tente novamente.");
     }
   }
 
@@ -218,7 +240,7 @@ export function RichNoteEditor({
         >
           <ListTodo className="size-4" />
         </ToolbarButton>
-        <ToolbarButton active={editor.isActive("link")} onClick={setLink}>
+        <ToolbarButton active={editor.isActive("link")} onClick={openLinkPopover}>
           <LinkIcon className="size-4" />
         </ToolbarButton>
         <ToolbarButton onClick={() => fileInputRef.current?.click()}>
@@ -259,6 +281,26 @@ export function RichNoteEditor({
           </Select>
         </div>
       </div>
+      {linkPopoverOpen && (
+        <div className="flex items-center gap-2 border-b border-border bg-muted/30 px-3 py-2">
+          <LinkIcon className="size-4 shrink-0 text-muted-foreground" />
+          <input
+            type="text"
+            autoFocus
+            placeholder="https://..."
+            value={linkValue}
+            onChange={(e) => setLinkValue(e.target.value)}
+            onKeyDown={handleLinkKeyDown}
+            className="h-8 flex-1 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          />
+          <Button type="button" size="sm" onClick={applyLink} className="gap-1.5">
+            Aplicar
+          </Button>
+          <Button type="button" variant="ghost" size="sm" onClick={() => setLinkPopoverOpen(false)}>
+            Cancelar
+          </Button>
+        </div>
+      )}
       <div className="min-h-0 flex-1 overflow-y-auto">
         <EditorContent editor={editor} className="text-sm" style={{ zoom: `${zoom}%` }} />
       </div>
