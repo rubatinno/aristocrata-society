@@ -7,6 +7,8 @@ import StarterKit from "@tiptap/starter-kit";
 import TiptapLink from "@tiptap/extension-link";
 import { TextStyle } from "@tiptap/extension-text-style";
 import Placeholder from "@tiptap/extension-placeholder";
+import TaskList from "@tiptap/extension-task-list";
+import TaskItem from "@tiptap/extension-task-item";
 import { FontSize } from "@/components/mentee-area/font-size-extension";
 import { ResizableImage } from "@/components/mentee-area/resizable-image";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -17,6 +19,7 @@ import {
   Link as LinkIcon,
   List,
   ListOrdered,
+  ListTodo,
   Minus,
   Plus,
   Redo2,
@@ -75,6 +78,8 @@ export function RichNoteEditor({
       ResizableImage,
       TextStyle,
       FontSize,
+      TaskList,
+      TaskItem.configure({ nested: true }),
       Placeholder.configure({ placeholder: "Escreva suas anotações aqui..." }),
     ],
     content,
@@ -206,6 +211,12 @@ export function RichNoteEditor({
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
         >
           <ListOrdered className="size-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          active={editor.isActive("taskList")}
+          onClick={() => editor.chain().focus().toggleTaskList().run()}
+        >
+          <ListTodo className="size-4" />
         </ToolbarButton>
         <ToolbarButton active={editor.isActive("link")} onClick={setLink}>
           <LinkIcon className="size-4" />
