@@ -157,42 +157,44 @@ function MenteeCard({ mentee, isAdmin }: { mentee: MenteeWithDetails; isAdmin: b
         </Button>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-4 border-t border-border pt-3 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1.5">
-          <CheckCircle2 className="size-3.5 text-success" />
-          {mentee.completedCalls}
-          {mentee.effectiveTotalCalls ? ` / ${mentee.effectiveTotalCalls}` : ""}{" "}
-          {mentee.completedCalls === 1 ? "chamada realizada" : "chamadas realizadas"}
-        </span>
-        <span className="flex items-center gap-1.5">
-          {mentee.daysRemaining === null ? (
-            <>
-              <CalendarClock className="size-3.5" /> Sem prazo definido
-            </>
-          ) : mentee.daysRemaining < 0 ? (
-            <>
-              <CalendarX2 className="size-3.5 text-destructive" /> Plano expirado
-            </>
-          ) : (
-            <>
-              <CalendarClock className="size-3.5" /> {mentee.daysRemaining}{" "}
-              {mentee.daysRemaining === 1 ? "dia restante" : "dias restantes"}
-            </>
+      {isAdmin && (
+        <div className="mt-3 flex flex-wrap items-center gap-4 border-t border-border pt-3 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <CheckCircle2 className="size-3.5 text-success" />
+            {mentee.completedCalls}
+            {mentee.effectiveTotalCalls ? ` / ${mentee.effectiveTotalCalls}` : ""}{" "}
+            {mentee.completedCalls === 1 ? "chamada realizada" : "chamadas realizadas"}
+          </span>
+          <span className="flex items-center gap-1.5">
+            {mentee.daysRemaining === null ? (
+              <>
+                <CalendarClock className="size-3.5" /> Sem prazo definido
+              </>
+            ) : mentee.daysRemaining < 0 ? (
+              <>
+                <CalendarX2 className="size-3.5 text-destructive" /> Plano expirado
+              </>
+            ) : (
+              <>
+                <CalendarClock className="size-3.5" /> {mentee.daysRemaining}{" "}
+                {mentee.daysRemaining === 1 ? "dia restante" : "dias restantes"}
+              </>
+            )}
+          </span>
+          {!editingLimits && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setEditingLimits(true)}
+              className="text-muted-foreground hover:text-foreground"
+              title="Editar limites deste mentorado"
+            >
+              <Pencil className="size-3.5" />
+            </Button>
           )}
-        </span>
-        {isAdmin && !editingLimits && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => setEditingLimits(true)}
-            className="text-muted-foreground hover:text-foreground"
-            title="Editar limites deste mentorado"
-          >
-            <Pencil className="size-3.5" />
-          </Button>
-        )}
-      </div>
+        </div>
+      )}
 
       {isAdmin && editingLimits && (
         <div className="mt-2 flex flex-wrap items-end gap-2 rounded-xl border border-border bg-muted/30 p-3">
