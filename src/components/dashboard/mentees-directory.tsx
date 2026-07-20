@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState, useTransition } from "react";
+import { addMonths, differenceInCalendarDays } from "date-fns";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +42,12 @@ export type MenteeWithDetails = ApprovedMentee & {
   effectiveTotalCalls: number | null;
 };
 
+function addDaysToDateKey(dateKey: string, days: number) {
+  const date = new Date(`${dateKey}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
 export function MenteesDirectory({
   mentees,
   isAdmin = false,
@@ -77,7 +84,12 @@ function MenteeCard({ mentee, isAdmin }: { mentee: MenteeWithDetails; isAdmin: b
   const [notesMaximized, setNotesMaximized] = useState(true);
   const [editingLimits, setEditingLimits] = useState(false);
   const [totalCallsInput, setTotalCallsInput] = useState(mentee.total_calls_override?.toString() ?? "");
-  const [durationInput, setDurationInput] = useState(mentee.duration_days_override?.toString() ?? "");
+  const [startDateInput, setStartDateInput] = useState(mentee.starts_at);
+  const [endDateInput, setEndDateInput] = useState(
+    mentee.duration_days_override
+      ? addDaysToDateKey(mentee.starts_at, mentee.duration_days_override)
+      : "",
+  );
   const [isSavingLimits, startSavingLimits] = useTransition();
 
   // Reage ao resultado da Server Action (fonte externa via useActionState),
@@ -104,13 +116,28 @@ function MenteeCard({ mentee, isAdmin }: { mentee: MenteeWithDetails; isAdmin: b
     });
   }
 
+  function handleStartDateChange(value: string) {
+    setStartDateInput(value);
+    if (value) {
+      const newEnd = addMonths(new Date(`${value}T12:00:00Z`), 4).toISOString().slice(0, 10);
+      setEndDateInput(newEnd);
+    }
+  }
+
   function handleSaveLimits() {
     const totalCalls = totalCallsInput.trim() === "" ? null : Number.parseInt(totalCallsInput, 10);
-    const durationDays = durationInput.trim() === "" ? null : Number.parseInt(durationInput, 10);
+    const durationDays =
+      endDateInput && startDateInput
+        ? differenceInCalendarDays(new Date(`${endDateInput}T12:00:00Z`), new Date(`${startDateInput}T12:00:00Z`))
+        : null;
 
     startSavingLimits(async () => {
       try {
-        await updateMenteeOverrides(mentee.id, { totalCalls, durationDays });
+        await updateMenteeOverrides(mentee.id, {
+          totalCalls,
+          durationDays,
+          startsAt: startDateInput || mentee.starts_at,
+        });
         toast.success("Limites atualizados.");
         setEditingLimits(false);
       } catch (e) {
@@ -210,14 +237,22 @@ function MenteeCard({ mentee, isAdmin }: { mentee: MenteeWithDetails; isAdmin: b
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Dias de acesso</label>
+            <label className="text-xs text-muted-foreground">Data de início</label>
             <Input
-              type="number"
-              min={1}
-              placeholder={mentee.plan?.duration_days ? String(mentee.plan.duration_days) : "Sem prazo"}
-              value={durationInput}
-              onChange={(e) => setDurationInput(e.target.value)}
-              className="w-32"
+              type="date"
+              value={startDateInput}
+              onChange={(e) => handleStartDateChange(e.target.value)}
+              className="w-40"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Data final</label>
+            <Input
+              type="date"
+              placeholder="Sem prazo"
+              value={endDateInput}
+              onChange={(e) => setEndDateInput(e.target.value)}
+              className="w-40"
             />
           </div>
           <Button type="button" size="sm" onClick={handleSaveLimits} disabled={isSavingLimits} className="gap-1.5">
@@ -231,14 +266,20 @@ function MenteeCard({ mentee, isAdmin }: { mentee: MenteeWithDetails; isAdmin: b
             onClick={() => {
               setEditingLimits(false);
               setTotalCallsInput(mentee.total_calls_override?.toString() ?? "");
-              setDurationInput(mentee.duration_days_override?.toString() ?? "");
+              setStartDateInput(mentee.starts_at);
+              setEndDateInput(
+                mentee.duration_days_override
+                  ? addDaysToDateKey(mentee.starts_at, mentee.duration_days_override)
+                  : "",
+              );
             }}
             disabled={isSavingLimits}
           >
             Cancelar
           </Button>
           <p className="w-full text-[11px] text-muted-foreground">
-            Deixe em branco pra usar o valor padrão do plano ({mentee.plan?.name ?? "sem plano"}).
+            A data final começa preenchida com 4 meses após o início — ajuste se quiser. Deixe em
+            branco pra usar o prazo padrão do plano ({mentee.plan?.name ?? "sem plano"}).
           </p>
         </div>
       )}

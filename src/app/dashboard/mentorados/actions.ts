@@ -59,12 +59,13 @@ export async function removeMenteeLink(id: string) {
   revalidatePath("/dashboard/mentorados");
 }
 
-/** Só admin: ajusta total de chamadas / dias de acesso de um mentorado
- * específico, sobrepondo o valor do plano dele (sem afetar outros
- * mentorados no mesmo plano). Passe null pra voltar a usar o valor do plano. */
+/** Só admin: ajusta total de chamadas / data de início / data final de
+ * acesso de um mentorado específico, sobrepondo o valor do plano dele (sem
+ * afetar outros mentorados no mesmo plano). durationDays null volta a usar
+ * o valor do plano; startsAt sempre é salvo (é a data "desde" exibida). */
 export async function updateMenteeOverrides(
   menteeId: string,
-  overrides: { totalCalls: number | null; durationDays: number | null },
+  overrides: { totalCalls: number | null; durationDays: number | null; startsAt: string },
 ) {
   const supabase = await requireAdmin();
 
@@ -73,6 +74,7 @@ export async function updateMenteeOverrides(
     .update({
       total_calls_override: overrides.totalCalls,
       duration_days_override: overrides.durationDays,
+      starts_at: overrides.startsAt,
     })
     .eq("id", menteeId);
 
