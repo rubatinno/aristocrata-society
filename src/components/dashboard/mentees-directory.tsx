@@ -7,12 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   addMenteeLink,
   removeMenteeLink,
   updateMenteeOverrides,
   type LinkFormState,
 } from "@/app/dashboard/mentorados/actions";
+import { updateMenteePlan } from "@/app/dashboard/aprovacoes/actions";
 import { listMenteeNotes } from "@/app/agendar/anotacoes/actions";
 import { NotesWorkspace } from "@/components/mentee-area/notes-workspace";
 import type { ApprovedMentee, MenteeLink, MenteeNote, Plan } from "@/lib/types";
@@ -33,6 +35,7 @@ import {
 } from "lucide-react";
 
 const initialState: LinkFormState = { status: "idle" };
+const NO_PLAN = "none";
 
 export type MenteeWithDetails = ApprovedMentee & {
   plan: Plan | null;
@@ -50,9 +53,11 @@ function addDaysToDateKey(dateKey: string, days: number) {
 
 export function MenteesDirectory({
   mentees,
+  plans = [],
   isAdmin = false,
 }: {
   mentees: MenteeWithDetails[];
+  plans?: Plan[];
   isAdmin?: boolean;
 }) {
   if (mentees.length === 0) {
@@ -66,13 +71,21 @@ export function MenteesDirectory({
   return (
     <div className="space-y-3">
       {mentees.map((mentee) => (
-        <MenteeCard key={mentee.id} mentee={mentee} isAdmin={isAdmin} />
+        <MenteeCard key={mentee.id} mentee={mentee} plans={plans} isAdmin={isAdmin} />
       ))}
     </div>
   );
 }
 
-function MenteeCard({ mentee, isAdmin }: { mentee: MenteeWithDetails; isAdmin: boolean }) {
+function MenteeCard({
+  mentee,
+  plans,
+  isAdmin,
+}: {
+  mentee: MenteeWithDetails;
+  plans: Plan[];
+  isAdmin: boolean;
+}) {
   const [showForm, setShowForm] = useState(false);
   const [formKey, setFormKey] = useState(0);
   const [state, formAction, pending] = useActionState(addMenteeLink, initialState);
@@ -91,6 +104,18 @@ function MenteeCard({ mentee, isAdmin }: { mentee: MenteeWithDetails; isAdmin: b
       : "",
   );
   const [isSavingLimits, startSavingLimits] = useTransition();
+  const [isChangingPlan, startChangingPlan] = useTransition();
+
+  function handlePlanChange(value: string | null) {
+    startChangingPlan(async () => {
+      try {
+        await updateMenteePlan(mentee.id, !value || value === NO_PLAN ? null : value);
+        toast.success("Plano atualizado.");
+      } catch {
+        toast.error("Não foi possível atualizar o plano.");
+      }
+    });
+  }
 
   // Reage ao resultado da Server Action (fonte externa via useActionState),
   // não a um valor derivável durante a renderização.
@@ -169,7 +194,31 @@ function MenteeCard({ mentee, isAdmin }: { mentee: MenteeWithDetails; isAdmin: b
             {mentee.email} · desde {formatFullDate(new Date(`${mentee.starts_at}T12:00:00Z`), "UTC")}
           </p>
         </div>
-        <Badge variant="outline">{mentee.plan?.name ?? "Sem plano (1/semana)"}</Badge>
+        {isAdmin ? (
+          <Select
+            items={{
+              [NO_PLAN]: "Sem plano (1/semana)",
+              ...Object.fromEntries(plans.map((plan) => [plan.id, plan.name])),
+            }}
+            value={mentee.plan_id ?? NO_PLAN}
+            onValueChange={handlePlanChange}
+            disabled={isChangingPlan}
+          >
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="Sem plano" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_PLAN}>Sem plano (1/semana)</SelectItem>
+              {plans.map((plan) => (
+                <SelectItem key={plan.id} value={plan.id}>
+                  {plan.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <Badge variant="outline">{mentee.plan?.name ?? "Sem plano (1/semana)"}</Badge>
+        )}
         <Button
           type="button"
           variant="outline"

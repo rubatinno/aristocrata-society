@@ -82,7 +82,7 @@ export default async function MentoradosPage() {
         </p>
       </div>
 
-      <MenteesDirectory mentees={menteesWithDetails} isAdmin={profile.is_admin} />
+      <MenteesDirectory mentees={menteesWithDetails} plans={planList} isAdmin={profile.is_admin} />
     </div>
   );
 }
