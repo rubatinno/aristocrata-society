@@ -41,6 +41,17 @@ export type Profile = {
   min_notice_hours: number;
   is_admin: boolean;
   created_at: string;
+  rate_per_call: number | null;
+};
+
+export type MentorPayment = {
+  id: string;
+  mentor_id: string;
+  amount: number;
+  paid_through: string; // yyyy-MM-dd
+  notes: string | null;
+  added_by: string | null;
+  created_at: string;
 };
 
 export type AvailabilityRule = {
@@ -212,6 +223,12 @@ export type Database = {
           updated_at?: string;
         };
         Update: Partial<MenteeNote>;
+        Relationships: [];
+      };
+      mentor_payments: {
+        Row: MentorPayment;
+        Insert: Omit<MentorPayment, "id" | "created_at"> & { id?: string; created_at?: string };
+        Update: Partial<MentorPayment>;
         Relationships: [];
       };
     };
