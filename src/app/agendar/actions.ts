@@ -4,6 +4,7 @@ import { startOfWeek, startOfMonth, endOfMonth, addDays } from "date-fns";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isMenteeProfileComplete, type Plan } from "@/lib/types";
+import { createCalendarEvent, getMentorAccessToken } from "@/lib/google-calendar";
 
 export interface CreateBookingInput {
   mentorId: string;
@@ -164,24 +165,59 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
     return { ok: false, message: "Esse horário acabou de ser reservado. Escolha outro." };
   }
 
-  const { error } = await admin.from("bookings").insert({
-    mentor_id: input.mentorId,
-    mentee_id: user.id,
-    mentee_name: menteeName,
-    mentee_email: menteeEmail,
-    mentee_phone: menteePhone,
-    notes: input.notes.trim() || null,
-    starts_at: input.startsAt,
-    ends_at: input.endsAt,
-    status: "confirmada",
-    meeting_link: null,
-  });
+  const { data: newBooking, error } = await admin
+    .from("bookings")
+    .insert({
+      mentor_id: input.mentorId,
+      mentee_id: user.id,
+      mentee_name: menteeName,
+      mentee_email: menteeEmail,
+      mentee_phone: menteePhone,
+      notes: input.notes.trim() || null,
+      starts_at: input.startsAt,
+      ends_at: input.endsAt,
+      status: "confirmada",
+      meeting_link: null,
+    })
+    .select("id")
+    .single();
 
   if (error) {
     if (error.code === "23P01") {
       return { ok: false, message: "Esse horário acabou de ser reservado. Escolha outro." };
     }
     return { ok: false, message: "Não foi possível confirmar o agendamento. Tente novamente." };
+  }
+
+  // Melhor esforço: cria o evento no Google Calendar do mentor, se ele tiver
+  // conectado a conta. Nunca deixa uma falha aqui derrubar o agendamento —
+  // o agendamento em si já está confirmado nesse ponto.
+  try {
+    const { data: mentorProfile } = await admin
+      .from("profiles")
+      .select("full_name, timezone, google_calendar_connected")
+      .eq("id", input.mentorId)
+      .maybeSingle();
+
+    if (mentorProfile?.google_calendar_connected) {
+      const accessToken = await getMentorAccessToken(input.mentorId);
+      if (accessToken) {
+        const eventId = await createCalendarEvent({
+          accessToken,
+          summary: `Mentoria: ${mentorProfile.full_name} + ${menteeName}`,
+          description: input.notes.trim() || undefined,
+          startsAt: input.startsAt,
+          endsAt: input.endsAt,
+          timeZone: mentorProfile.timezone,
+          attendeeEmail: menteeEmail,
+        });
+        if (eventId) {
+          await admin.from("bookings").update({ google_event_id: eventId }).eq("id", newBooking.id);
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Falha ao sincronizar agendamento com o Google Calendar:", err);
   }
 
   return { ok: true };

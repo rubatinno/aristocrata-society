@@ -42,6 +42,15 @@ export type Profile = {
   is_admin: boolean;
   created_at: string;
   rate_per_call: number | null;
+  google_calendar_connected: boolean;
+};
+
+export type MentorGoogleToken = {
+  mentor_id: string;
+  refresh_token: string;
+  connected_email: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type MentorPayment = {
@@ -145,6 +154,7 @@ export type Booking = {
   status: BookingStatus;
   meeting_link: string | null;
   created_at: string;
+  google_event_id: string | null;
 };
 
 // Tipagem mínima do schema, no formato esperado pelo cliente Supabase.
@@ -173,10 +183,11 @@ export type Database = {
       };
       bookings: {
         Row: Booking;
-        Insert: Omit<Booking, "id" | "created_at" | "mentee_id"> & {
+        Insert: Omit<Booking, "id" | "created_at" | "mentee_id" | "google_event_id"> & {
           id?: string;
           created_at?: string;
           mentee_id?: string | null;
+          google_event_id?: string | null;
         };
         Update: Partial<Booking>;
         Relationships: [];
@@ -238,6 +249,16 @@ export type Database = {
         Row: MentorPayment;
         Insert: Omit<MentorPayment, "id" | "created_at"> & { id?: string; created_at?: string };
         Update: Partial<MentorPayment>;
+        Relationships: [];
+      };
+      mentor_google_tokens: {
+        Row: MentorGoogleToken;
+        Insert: Omit<MentorGoogleToken, "created_at" | "updated_at" | "connected_email"> & {
+          created_at?: string;
+          updated_at?: string;
+          connected_email?: string | null;
+        };
+        Update: Partial<MentorGoogleToken>;
         Relationships: [];
       };
     };
