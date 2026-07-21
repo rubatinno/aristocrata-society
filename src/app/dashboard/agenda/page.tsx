@@ -7,6 +7,19 @@ export default async function AgendaPage() {
   const bookings = await listBookings(supabase, profile.id);
   const now = new Date();
 
+  const emails = Array.from(new Set(bookings.map((b) => b.mentee_email)));
+  const groupLinkByEmail = new Map<string, string>();
+  if (emails.length > 0) {
+    const { data: mentees } = await supabase
+      .from("approved_mentees")
+      .select("email, group_link")
+      .in("email", emails);
+
+    for (const mentee of mentees ?? []) {
+      if (mentee.group_link) groupLinkByEmail.set(mentee.email, mentee.group_link);
+    }
+  }
+
   const upcoming = bookings.filter((b) => b.status === "confirmada" && new Date(b.starts_at) >= now);
   // Já passou do horário e o mentor ainda não disse se rolou ou não — fica
   // separado do histórico até alguém resolver, com os botões de ação ainda
@@ -36,6 +49,7 @@ export default async function AgendaPage() {
         past={past}
         cancelled={cancelled}
         timeZone={profile.timezone}
+        groupLinkByEmail={Object.fromEntries(groupLinkByEmail)}
       />
     </div>
   );

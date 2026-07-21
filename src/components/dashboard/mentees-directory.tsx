@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   addMenteeLink,
   removeMenteeLink,
+  updateMenteeGroupLink,
   updateMenteeOverrides,
   type LinkFormState,
 } from "@/app/dashboard/mentorados/actions";
@@ -32,6 +33,7 @@ import {
   Pencil,
   Plus,
   Trash2,
+  Users,
 } from "lucide-react";
 
 const initialState: LinkFormState = { status: "idle" };
@@ -105,6 +107,9 @@ function MenteeCard({
   );
   const [isSavingLimits, startSavingLimits] = useTransition();
   const [isChangingPlan, startChangingPlan] = useTransition();
+  const [editingGroupLink, setEditingGroupLink] = useState(false);
+  const [groupLinkInput, setGroupLinkInput] = useState(mentee.group_link ?? "");
+  const [isSavingGroupLink, startSavingGroupLink] = useTransition();
 
   function handlePlanChange(value: string | null) {
     startChangingPlan(async () => {
@@ -113,6 +118,18 @@ function MenteeCard({
         toast.success("Plano atualizado.");
       } catch {
         toast.error("Não foi possível atualizar o plano.");
+      }
+    });
+  }
+
+  function handleSaveGroupLink() {
+    startSavingGroupLink(async () => {
+      try {
+        await updateMenteeGroupLink(mentee.id, groupLinkInput);
+        toast.success("Link do grupo salvo.");
+        setEditingGroupLink(false);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Não foi possível salvar.");
       }
     });
   }
@@ -231,6 +248,79 @@ function MenteeCard({
           {loadingNotes ? <Loader2 className="size-3.5 animate-spin" /> : <NotebookPen className="size-3.5" />}
           Anotações
         </Button>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+        {editingGroupLink ? (
+          <>
+            <Users className="size-3.5 shrink-0 text-muted-foreground" />
+            <Input
+              type="text"
+              autoFocus
+              placeholder="https://chat.whatsapp.com/..."
+              value={groupLinkInput}
+              onChange={(e) => setGroupLinkInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleSaveGroupLink();
+                } else if (e.key === "Escape") {
+                  setEditingGroupLink(false);
+                  setGroupLinkInput(mentee.group_link ?? "");
+                }
+              }}
+              className="h-8 min-w-48 flex-1"
+            />
+            <Button type="button" size="sm" onClick={handleSaveGroupLink} disabled={isSavingGroupLink} className="gap-1.5">
+              {isSavingGroupLink && <Loader2 className="size-3.5 animate-spin" />}
+              Salvar
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setEditingGroupLink(false);
+                setGroupLinkInput(mentee.group_link ?? "");
+              }}
+              disabled={isSavingGroupLink}
+            >
+              Cancelar
+            </Button>
+          </>
+        ) : mentee.group_link ? (
+          <>
+            <a
+              href={mentee.group_link}
+              target="_blank"
+              rel="noreferrer"
+              className="flex min-w-0 items-center gap-1.5 truncate text-sm text-primary hover:underline"
+            >
+              <Users className="size-3.5 shrink-0" />
+              Grupo do mentorado
+            </a>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setEditingGroupLink(true)}
+              className="text-muted-foreground hover:text-foreground"
+              title="Editar link do grupo"
+            >
+              <Pencil className="size-3.5" />
+            </Button>
+          </>
+        ) : (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setEditingGroupLink(true)}
+            className="gap-1.5 text-primary hover:text-primary"
+          >
+            <Users className="size-3.5" /> Adicionar link do grupo
+          </Button>
+        )}
       </div>
 
       {isAdmin && (

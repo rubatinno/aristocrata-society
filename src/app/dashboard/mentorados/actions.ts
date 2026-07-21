@@ -83,3 +83,31 @@ export async function updateMenteeOverrides(
   revalidatePath("/dashboard/mentorados");
   revalidatePath("/agendar");
 }
+
+/** Link do grupo (WhatsApp/comunidade) do mentorado — qualquer mentor pode
+ * ver/editar, aparece também na Agenda pra dar contexto rápido de onde essa
+ * pessoa está. Passe string vazia ou null pra remover. */
+export async function updateMenteeGroupLink(menteeId: string, groupLink: string | null) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("Não autenticado.");
+
+  const trimmed = groupLink?.trim() || null;
+  if (trimmed && !/^https?:\/\//i.test(trimmed)) {
+    throw new Error("Informe uma URL válida (começando com http:// ou https://).");
+  }
+
+  const { error } = await supabase
+    .from("approved_mentees")
+    .update({ group_link: trimmed })
+    .eq("id", menteeId);
+
+  if (error) throw new Error("Não foi possível salvar o link do grupo.");
+
+  revalidatePath("/dashboard/mentorados");
+  revalidatePath("/dashboard/agenda");
+}

@@ -29,12 +29,14 @@ export function AgendaView({
   past,
   cancelled,
   timeZone,
+  groupLinkByEmail = {},
 }: {
   upcoming: Booking[];
   pending: Booking[];
   past: Booking[];
   cancelled: Booking[];
   timeZone: string;
+  groupLinkByEmail?: Record<string, string>;
 }) {
   const [query, setQuery] = useState("");
   const [from, setFrom] = useState("");
@@ -106,6 +108,7 @@ export function AgendaView({
                 key={booking.id}
                 booking={booking}
                 timeZone={timeZone}
+                groupLink={groupLinkByEmail[booking.mentee_email]}
                 actions={<BookingActions bookingId={booking.id} />}
               />
             ))
@@ -130,6 +133,7 @@ export function AgendaView({
                 booking={booking}
                 timeZone={timeZone}
                 pending
+                groupLink={groupLinkByEmail[booking.mentee_email]}
                 actions={<BookingActions bookingId={booking.id} />}
               />
             ))
@@ -149,7 +153,12 @@ export function AgendaView({
             />
           ) : (
             filtered.past.map((booking) => (
-              <BookingRow key={booking.id} booking={booking} timeZone={timeZone} />
+              <BookingRow
+                key={booking.id}
+                booking={booking}
+                timeZone={timeZone}
+                groupLink={groupLinkByEmail[booking.mentee_email]}
+              />
             ))
           )}
         </TabsContent>
@@ -167,7 +176,12 @@ export function AgendaView({
             />
           ) : (
             filtered.cancelled.map((booking) => (
-              <BookingRow key={booking.id} booking={booking} timeZone={timeZone} />
+              <BookingRow
+                key={booking.id}
+                booking={booking}
+                timeZone={timeZone}
+                groupLink={groupLinkByEmail[booking.mentee_email]}
+              />
             ))
           )}
         </TabsContent>
