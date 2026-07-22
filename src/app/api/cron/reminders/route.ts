@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
 
     const { data: bookings } = await admin
       .from("bookings")
-      .select("id, mentor_id, mentee_name, mentee_email, starts_at, meeting_link")
+      .select("id, mentor_id, mentee_name, mentee_email, starts_at, ends_at, meeting_link")
       .eq("status", "confirmada")
       .is(window.column, null)
       .gte("starts_at", from)
@@ -71,8 +71,11 @@ export async function GET(request: NextRequest) {
             ...buildReminderEmail({
               recipientName: booking.mentee_name,
               otherPartyName: mentor.full_name,
+              mentorName: mentor.full_name,
+              menteeName: booking.mentee_name,
               kind: window.kind,
               startsAt: booking.starts_at,
+              endsAt: booking.ends_at,
               timeZone: mentor.timezone,
               meetingLink: booking.meeting_link,
             }),
@@ -83,8 +86,11 @@ export async function GET(request: NextRequest) {
                 ...buildReminderEmail({
                   recipientName: mentor.full_name,
                   otherPartyName: booking.mentee_name,
+                  mentorName: mentor.full_name,
+                  menteeName: booking.mentee_name,
                   kind: window.kind,
                   startsAt: booking.starts_at,
+                  endsAt: booking.ends_at,
                   timeZone: mentor.timezone,
                   meetingLink: booking.meeting_link,
                 }),
