@@ -157,7 +157,7 @@ export type Booking = {
   google_event_id: string | null;
   reminder_30_sent_at: string | null;
   reminder_5_sent_at: string | null;
-  reminder_start_sent_at: string | null;
+  reminder_1_sent_at: string | null;
 };
 
 // Tipagem mínima do schema, no formato esperado pelo cliente Supabase.
@@ -194,7 +194,7 @@ export type Database = {
           | "google_event_id"
           | "reminder_30_sent_at"
           | "reminder_5_sent_at"
-          | "reminder_start_sent_at"
+          | "reminder_1_sent_at"
         > & {
           id?: string;
           created_at?: string;
@@ -202,7 +202,7 @@ export type Database = {
           google_event_id?: string | null;
           reminder_30_sent_at?: string | null;
           reminder_5_sent_at?: string | null;
-          reminder_start_sent_at?: string | null;
+          reminder_1_sent_at?: string | null;
         };
         Update: Partial<Booking>;
         Relationships: [];

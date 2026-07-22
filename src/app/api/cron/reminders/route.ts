@@ -6,10 +6,10 @@ import { buildReminderEmail, type ReminderKind } from "@/lib/reminder-emails";
 
 export const dynamic = "force-dynamic";
 
-const WINDOWS: { kind: ReminderKind; column: "reminder_30_sent_at" | "reminder_5_sent_at" | "reminder_start_sent_at"; fromMin: number; toMin: number }[] = [
+const WINDOWS: { kind: ReminderKind; column: "reminder_30_sent_at" | "reminder_5_sent_at" | "reminder_1_sent_at"; fromMin: number; toMin: number }[] = [
   { kind: "30", column: "reminder_30_sent_at", fromMin: 29, toMin: 31 },
   { kind: "5", column: "reminder_5_sent_at", fromMin: 4, toMin: 6 },
-  { kind: "start", column: "reminder_start_sent_at", fromMin: -1, toMin: 1 },
+  { kind: "1", column: "reminder_1_sent_at", fromMin: 0, toMin: 2 },
 ];
 
 export async function GET(request: NextRequest) {

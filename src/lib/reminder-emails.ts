@@ -3,13 +3,13 @@ import { differenceInMinutes } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatInTimeZone } from "date-fns-tz";
 
-export type ReminderKind = "30" | "5" | "start";
+export type ReminderKind = "30" | "5" | "1";
 
-const KIND_BADGE: Record<ReminderKind, string> = {
-  "30": "Começa em 30 minutos",
-  "5": "Começa em 5 minutos",
-  start: "Começando agora",
-};
+const KIND_MINUTES: Record<ReminderKind, number> = { "30": 30, "5": 5, "1": 1 };
+
+function minutesLabel(minutes: number) {
+  return minutes === 1 ? "1 minuto" : `${minutes} minutos`;
+}
 
 // Paleta institucional Aristocrata Society (quase-preto + dourado envelhecido),
 // convertida de oklch (src/app/globals.css) pra hex — clientes de e-mail não
@@ -51,7 +51,8 @@ export function buildReminderEmail({
   timeZone,
   panelUrl,
 }: ReminderEmailInput): { subject: string; html: string } {
-  const badge = KIND_BADGE[kind];
+  const minutes = KIND_MINUTES[kind];
+  const badge = `Começa em ${minutesLabel(minutes)}`;
   const eventTitle = `Mentoria: ${mentorName} + ${menteeName}`;
   const durationMinutes = differenceInMinutes(new Date(endsAt), new Date(startsAt));
 
@@ -62,10 +63,7 @@ export function buildReminderEmail({
   const startTime = formatInTimeZone(new Date(startsAt), timeZone, "HH:mm");
   const endTime = formatInTimeZone(new Date(endsAt), timeZone, "HH:mm");
 
-  const subject =
-    kind === "start"
-      ? `Começando agora: mentoria com ${otherPartyName}`
-      : `${badge}: mentoria com ${otherPartyName}`;
+  const subject = `Sua chamada começa em ${minutesLabel(minutes)}!`;
 
   const logoUrl = `${appUrl()}/logo-mark-dark.png`;
   const dashboardUrl = `${appUrl()}${panelUrl}`;
