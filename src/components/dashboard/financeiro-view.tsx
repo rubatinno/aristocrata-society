@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { BookingRow } from "@/components/dashboard/booking-row";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import type { Booking, Profile } from "@/lib/types";
-import { CalendarX2, CheckCircle2, Search, X } from "lucide-react";
+import { CalendarClock, CalendarX2, CheckCircle2, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -62,11 +62,21 @@ export function FinanceiroView({ mentors, bookings }: { mentors: Profile[]; book
   );
 
   const summaryByMentor = useMemo(() => {
-    const map = new Map<string, { total: number; concluida: number; cancelada: number; no_show: number }>();
+    const map = new Map<
+      string,
+      { total: number; concluida: number; confirmada: number; cancelada: number; no_show: number }
+    >();
     for (const booking of baseFiltered) {
-      const entry = map.get(booking.mentor_id) ?? { total: 0, concluida: 0, cancelada: 0, no_show: 0 };
+      const entry = map.get(booking.mentor_id) ?? {
+        total: 0,
+        concluida: 0,
+        confirmada: 0,
+        cancelada: 0,
+        no_show: 0,
+      };
       entry.total += 1;
       if (booking.status === "concluida") entry.concluida += 1;
+      if (booking.status === "confirmada") entry.confirmada += 1;
       if (booking.status === "cancelada") entry.cancelada += 1;
       if (booking.status === "no_show") entry.no_show += 1;
       map.set(booking.mentor_id, entry);
@@ -140,6 +150,7 @@ export function FinanceiroView({ mentors, bookings }: { mentors: Profile[]; book
               const stats = summaryByMentor.get(mentor.id) ?? {
                 total: 0,
                 concluida: 0,
+                confirmada: 0,
                 cancelada: 0,
                 no_show: 0,
               };
@@ -163,9 +174,21 @@ export function FinanceiroView({ mentors, bookings }: { mentors: Profile[]; book
                         : ""}
                     </p>
                   </div>
-                  <div className="flex shrink-0 items-center gap-1.5 rounded-full bg-success/15 px-2.5 py-1 text-sm font-semibold text-success">
-                    <CheckCircle2 className="size-3.5" />
-                    {stats.concluida}
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <div
+                      title="Chamadas confirmadas"
+                      className="flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-sm font-semibold text-primary"
+                    >
+                      <CalendarClock className="size-3.5" />
+                      {stats.confirmada}
+                    </div>
+                    <div
+                      title="Chamadas concluídas"
+                      className="flex items-center gap-1.5 rounded-full bg-success/15 px-2.5 py-1 text-sm font-semibold text-success"
+                    >
+                      <CheckCircle2 className="size-3.5" />
+                      {stats.concluida}
+                    </div>
                   </div>
                 </button>
               );
