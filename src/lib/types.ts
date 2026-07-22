@@ -155,6 +155,9 @@ export type Booking = {
   meeting_link: string | null;
   created_at: string;
   google_event_id: string | null;
+  reminder_30_sent_at: string | null;
+  reminder_5_sent_at: string | null;
+  reminder_start_sent_at: string | null;
 };
 
 // Tipagem mínima do schema, no formato esperado pelo cliente Supabase.
@@ -183,11 +186,23 @@ export type Database = {
       };
       bookings: {
         Row: Booking;
-        Insert: Omit<Booking, "id" | "created_at" | "mentee_id" | "google_event_id"> & {
+        Insert: Omit<
+          Booking,
+          | "id"
+          | "created_at"
+          | "mentee_id"
+          | "google_event_id"
+          | "reminder_30_sent_at"
+          | "reminder_5_sent_at"
+          | "reminder_start_sent_at"
+        > & {
           id?: string;
           created_at?: string;
           mentee_id?: string | null;
           google_event_id?: string | null;
+          reminder_30_sent_at?: string | null;
+          reminder_5_sent_at?: string | null;
+          reminder_start_sent_at?: string | null;
         };
         Update: Partial<Booking>;
         Relationships: [];
