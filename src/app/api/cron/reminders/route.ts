@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
 
     const { data: bookings } = await admin
       .from("bookings")
-      .select("id, mentor_id, mentee_name, mentee_email, starts_at, ends_at, meeting_link")
+      .select("id, mentor_id, mentee_name, mentee_email, starts_at, ends_at")
       .eq("status", "confirmada")
       .is(window.column, null)
       .gte("starts_at", from)
@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
               startsAt: booking.starts_at,
               endsAt: booking.ends_at,
               timeZone: mentor.timezone,
-              meetingLink: booking.meeting_link,
+              panelUrl: "/agendar",
             }),
           }),
           mentor.email
@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
                   startsAt: booking.starts_at,
                   endsAt: booking.ends_at,
                   timeZone: mentor.timezone,
-                  meetingLink: booking.meeting_link,
+                  panelUrl: "/dashboard/agenda",
                 }),
               })
             : Promise.resolve(),
