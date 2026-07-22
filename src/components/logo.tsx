@@ -20,6 +20,7 @@ export function LogoMark({
         alt="Aristocrata Society"
         width={800}
         height={455}
+        sizes="140px"
         className={cn(
           "h-full w-auto object-contain",
           tone === "auto" && "hidden dark:block",
@@ -32,6 +33,7 @@ export function LogoMark({
         alt={tone === "cream" ? "" : "Aristocrata Society"}
         width={800}
         height={455}
+        sizes="140px"
         className={cn(
           "h-full w-auto object-contain",
           tone === "auto" && "block dark:hidden",

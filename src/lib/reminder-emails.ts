@@ -65,7 +65,7 @@ export function buildReminderEmail({
 
   const subject = `Sua chamada começa em ${minutesLabel(minutes)}!`;
 
-  const logoUrl = `${appUrl()}/logo-mark-dark.png`;
+  const logoUrl = `${appUrl()}/logo-mark-dark-email.png`;
   const dashboardUrl = `${appUrl()}${panelUrl}`;
 
   const html = `

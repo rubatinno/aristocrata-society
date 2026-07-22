@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { updateProfile, type SettingsState } from "@/app/dashboard/configuracoes/actions";
 import { TIMEZONES } from "@/lib/slug";
 import { createClient } from "@/lib/supabase/client";
@@ -123,8 +124,14 @@ function AvatarUploader({
   );
 }
 
+const MAX_BOOKING_WINDOW_DAYS = 365;
+
 export function SettingsForm({ profile }: { profile: Profile }) {
   const [state, action, pending] = useActionState(updateProfile, initialState);
+  const [noWindowLimit, setNoWindowLimit] = useState(
+    profile.booking_window_days >= MAX_BOOKING_WINDOW_DAYS,
+  );
+  const [requireMinNotice, setRequireMinNotice] = useState(profile.min_notice_hours > 0);
 
   useEffect(() => {
     if (state.status === "success") toast.success(state.message);
@@ -244,33 +251,61 @@ export function SettingsForm({ profile }: { profile: Profile }) {
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="booking_window_days">Antecedência máxima (dias)</Label>
-            <Input
-              id="booking_window_days"
-              name="booking_window_days"
-              type="number"
-              min={1}
-              max={365}
-              defaultValue={profile.booking_window_days}
-            />
+            <div className="flex items-center justify-between">
+              <Label htmlFor="booking_window_days">Antecedência máxima (dias)</Label>
+              <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                Sem limite
+                <Switch checked={noWindowLimit} onCheckedChange={setNoWindowLimit} size="sm" />
+              </label>
+            </div>
+            {noWindowLimit ? (
+              <input type="hidden" name="booking_window_days" value={MAX_BOOKING_WINDOW_DAYS} />
+            ) : (
+              <Input
+                id="booking_window_days"
+                name="booking_window_days"
+                type="number"
+                min={1}
+                max={365}
+                defaultValue={
+                  profile.booking_window_days >= MAX_BOOKING_WINDOW_DAYS
+                    ? 45
+                    : profile.booking_window_days
+                }
+              />
+            )}
             <p className="text-xs text-muted-foreground">
-              Até quantos dias no futuro o mentorado pode marcar.
+              {noWindowLimit
+                ? "O mentorado pode marcar em qualquer data futura."
+                : "Até quantos dias no futuro o mentorado pode marcar."}
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="min_notice_hours">Antecedência mínima (horas)</Label>
-            <Input
-              id="min_notice_hours"
-              name="min_notice_hours"
-              type="number"
-              min={0}
-              max={168}
-              step={0.5}
-              defaultValue={profile.min_notice_hours}
-            />
+            <div className="flex items-center justify-between">
+              <Label htmlFor="min_notice_hours">Antecedência mínima (horas)</Label>
+              <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                Exigir
+                <Switch checked={requireMinNotice} onCheckedChange={setRequireMinNotice} size="sm" />
+              </label>
+            </div>
+            {requireMinNotice ? (
+              <Input
+                id="min_notice_hours"
+                name="min_notice_hours"
+                type="number"
+                min={0.5}
+                max={168}
+                step={0.5}
+                defaultValue={profile.min_notice_hours || 1}
+              />
+            ) : (
+              <input type="hidden" name="min_notice_hours" value={0} />
+            )}
             <p className="text-xs text-muted-foreground">
-              Com quanta antecedência o mentorado precisa marcar. Use 0 para sem mínimo.
+              {requireMinNotice
+                ? "Com quanta antecedência o mentorado precisa marcar."
+                : "O mentorado pode marcar a qualquer momento, mesmo em cima da hora."}
             </p>
           </div>
         </div>
