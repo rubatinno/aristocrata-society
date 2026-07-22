@@ -65,7 +65,8 @@ export function buildReminderEmail({
 
   const subject = `Sua chamada começa em ${minutesLabel(minutes)}!`;
 
-  const logoUrl = `${appUrl()}/logo-mark-dark-email.png`;
+  const logoLightUrl = `${appUrl()}/logo-mark-dark-email.png`; // brasão em tinta escura, pro fundo claro
+  const logoDarkUrl = `${appUrl()}/logo-mark-email.png`; // brasão em tinta clara, pro fundo escuro
   const dashboardUrl = `${appUrl()}${panelUrl}`;
 
   const html = `
@@ -74,33 +75,33 @@ export function buildReminderEmail({
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="light" />
-    <meta name="supported-color-schemes" content="light" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="supported-color-schemes" content="light dark" />
     <style>
-      :root {
-        color-scheme: light;
-        supported-color-schemes: light;
+      .logo-dark { display: none; }
+      @media (prefers-color-scheme: dark) {
+        .logo-light { display: none !important; }
+        .logo-dark { display: block !important; }
       }
-      /* Gmail no dark mode tenta "escurecer" fundos claros e inverter imagens
-         — esses seletores (que o Gmail injeta) forçam de volta as cores
-         originais, já que o cartão foi desenhado só pro modo claro. */
-      [data-ogsc] .force-bg-cream { background-color: ${COLORS.cream} !important; }
-      [data-ogsc] .force-bg-white { background-color: #ffffff !important; }
-      [data-ogsc] .force-ink { color: ${COLORS.ink} !important; }
-      [data-ogsc] img { filter: none !important; }
+      /* Gmail (webmail/app) não segue prefers-color-scheme — usa esse
+         atributo próprio injetado no <body> quando o usuário está no
+         modo escuro. Repete a mesma troca de logo pra cobrir o Gmail. */
+      [data-ogsc] .logo-light { display: none !important; }
+      [data-ogsc] .logo-dark { display: block !important; }
     </style>
   </head>
   <body style="margin:0; padding:0; background-color:${COLORS.cream}; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="force-bg-cream" style="background-color:${COLORS.cream}; padding: 32px 16px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${COLORS.cream}; padding: 32px 16px;">
       <tr>
         <td align="center">
-          <table role="presentation" width="480" cellpadding="0" cellspacing="0" class="force-bg-white" style="max-width:480px; width:100%; background-color:#ffffff; border-radius:14px; overflow:hidden; border:1px solid ${COLORS.border};">
+          <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px; width:100%; background-color:#ffffff; border-radius:14px; overflow:hidden; border:1px solid ${COLORS.border};">
             <tr>
               <td style="height:6px; background-color:${COLORS.gold}; font-size:0; line-height:0;">&nbsp;</td>
             </tr>
             <tr>
               <td align="center" style="padding: 26px 32px 0 32px;">
-                <img src="${logoUrl}" alt="Aristocrata Society" width="120" style="display:block; width:120px; height:auto;" />
+                <img src="${logoLightUrl}" alt="Aristocrata Society" width="120" class="logo-light" style="display:block; width:120px; height:auto;" />
+                <img src="${logoDarkUrl}" alt="Aristocrata Society" width="120" class="logo-dark" style="width:120px; height:auto;" />
               </td>
             </tr>
             <tr>
@@ -112,7 +113,7 @@ export function buildReminderEmail({
             </tr>
             <tr>
               <td align="center" style="padding: 14px 32px 0 32px;">
-                <p class="force-ink" style="margin:0; font-family: Georgia, 'Times New Roman', serif; font-size:21px; font-weight:700; color:${COLORS.ink};">${eventTitle}</p>
+                <p style="margin:0; font-family: Georgia, 'Times New Roman', serif; font-size:21px; font-weight:700; color:${COLORS.ink};">${eventTitle}</p>
               </td>
             </tr>
             <tr>
@@ -120,17 +121,17 @@ export function buildReminderEmail({
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid ${COLORS.border}; border-bottom:1px solid ${COLORS.border};">
                   <tr>
                     <td style="padding:14px 0; font-size:14px; color:${COLORS.mutedText}; width:88px;">Quando</td>
-                    <td class="force-ink" style="padding:14px 0; font-size:14px; color:${COLORS.ink}; font-weight:600;">${capitalizedDate}, ${startTime} – ${endTime}</td>
+                    <td style="padding:14px 0; font-size:14px; color:${COLORS.ink}; font-weight:600;">${capitalizedDate}, ${startTime} – ${endTime}</td>
                   </tr>
                 </table>
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                   <tr>
                     <td style="padding-top:12px; font-size:14px; color:${COLORS.mutedText}; width:88px;">Duração</td>
-                    <td class="force-ink" style="padding-top:12px; font-size:14px; color:${COLORS.ink}; font-weight:600;">${durationMinutes} minutos</td>
+                    <td style="padding-top:12px; font-size:14px; color:${COLORS.ink}; font-weight:600;">${durationMinutes} minutos</td>
                   </tr>
                   <tr>
                     <td style="padding-top:8px; font-size:14px; color:${COLORS.mutedText};">Com</td>
-                    <td class="force-ink" style="padding-top:8px; font-size:14px; color:${COLORS.ink}; font-weight:600;">${otherPartyName}</td>
+                    <td style="padding-top:8px; font-size:14px; color:${COLORS.ink}; font-weight:600;">${otherPartyName}</td>
                   </tr>
                 </table>
               </td>
