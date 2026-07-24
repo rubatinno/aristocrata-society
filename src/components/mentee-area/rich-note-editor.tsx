@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type KeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+  type ReactNode,
+} from "react";
 import { toast } from "sonner";
 import { useEditor, useEditorState, EditorContent } from "@tiptap/react";
 import type { EditorView } from "@tiptap/pm/view";
@@ -75,7 +83,10 @@ export function RichNoteEditor({
     extensions: [
       StarterKit.configure({ link: false }),
       TiptapLink.configure({
-        openOnClick: true,
+        // Abrimos o link na mão via onMouseDownCapture (mais abaixo) — mais
+        // confiável entre navegadores do que depender do handler interno da
+        // extensão, que em alguns deles não navega dentro de área editável.
+        openOnClick: false,
         autolink: true,
         HTMLAttributes: { rel: "noopener noreferrer", target: "_blank" },
       }),
@@ -166,6 +177,19 @@ export function RichNoteEditor({
       event.preventDefault();
       setLinkPopoverOpen(false);
     }
+  }
+
+  // Alguns navegadores não navegam em links dentro de uma área editável
+  // (ou dependem de um modificador tipo Cmd/Ctrl+clique) — capturamos o
+  // mousedown antes do ProseMirror pra abrir o link na mão, sempre.
+  function handleEditorMouseDownCapture(event: ReactMouseEvent<HTMLDivElement>) {
+    const link = (event.target as HTMLElement).closest("a");
+    if (!link) return;
+    const href = link.getAttribute("href");
+    if (!href) return;
+    event.preventDefault();
+    event.stopPropagation();
+    window.open(href, "_blank", "noopener,noreferrer");
   }
 
   function applyFontSize(size: number) {
@@ -301,7 +325,7 @@ export function RichNoteEditor({
           </Button>
         </div>
       )}
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto" onMouseDownCapture={handleEditorMouseDownCapture}>
         <EditorContent editor={editor} className="text-sm" style={{ zoom: `${zoom}%` }} />
       </div>
     </div>
