@@ -140,6 +140,8 @@
    plugin de tipografia do Tailwind. */
 .ProseMirror {
   outline: none;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);

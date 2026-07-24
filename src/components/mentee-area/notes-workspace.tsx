@@ -201,7 +201,7 @@ export function NotesWorkspace({
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {selected ? (
           <>
             <div className="flex items-center justify-between gap-3 border-b border-border px-6 py-4">
