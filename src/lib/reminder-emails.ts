@@ -65,8 +65,7 @@ export function buildReminderEmail({
 
   const subject = `Sua chamada começa em ${minutesLabel(minutes)}!`;
 
-  const logoLightUrl = `${appUrl()}/logo-mark-dark-email.png`; // brasão em tinta escura, pro fundo claro
-  const logoDarkUrl = `${appUrl()}/logo-mark-email.png`; // brasão em tinta clara, pro fundo escuro
+  const logoUrl = `${appUrl()}/logo-mark-dark-email.png`;
   const dashboardUrl = `${appUrl()}${panelUrl}`;
 
   const html = `
@@ -75,20 +74,6 @@ export function buildReminderEmail({
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="light dark" />
-    <meta name="supported-color-schemes" content="light dark" />
-    <style>
-      .logo-dark { display: none; }
-      @media (prefers-color-scheme: dark) {
-        .logo-light { display: none !important; }
-        .logo-dark { display: block !important; }
-      }
-      /* Gmail (webmail/app) não segue prefers-color-scheme — usa esse
-         atributo próprio injetado no <body> quando o usuário está no
-         modo escuro. Repete a mesma troca de logo pra cobrir o Gmail. */
-      [data-ogsc] .logo-light { display: none !important; }
-      [data-ogsc] .logo-dark { display: block !important; }
-    </style>
   </head>
   <body style="margin:0; padding:0; background-color:${COLORS.cream}; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${COLORS.cream}; padding: 32px 16px;">
@@ -100,8 +85,13 @@ export function buildReminderEmail({
             </tr>
             <tr>
               <td align="center" style="padding: 26px 32px 0 32px;">
-                <img src="${logoLightUrl}" alt="Aristocrata Society" width="120" class="logo-light" style="display:block; width:120px; height:auto;" />
-                <img src="${logoDarkUrl}" alt="Aristocrata Society" width="120" class="logo-dark" style="width:120px; height:auto;" />
+                <table role="presentation" cellpadding="0" cellspacing="0" bgcolor="${COLORS.goldSoft}" style="background-color:${COLORS.goldSoft}; border-radius:12px;">
+                  <tr>
+                    <td style="padding: 12px 20px;">
+                      <img src="${logoUrl}" alt="Aristocrata Society" width="96" style="display:block; width:96px; height:auto;" />
+                    </td>
+                  </tr>
+                </table>
               </td>
             </tr>
             <tr>
