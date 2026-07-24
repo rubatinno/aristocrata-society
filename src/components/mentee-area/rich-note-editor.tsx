@@ -75,9 +75,9 @@ export function RichNoteEditor({
     extensions: [
       StarterKit.configure({ link: false }),
       TiptapLink.configure({
-        openOnClick: false,
+        openOnClick: true,
         autolink: true,
-        HTMLAttributes: { rel: "noreferrer", target: "_blank" },
+        HTMLAttributes: { rel: "noopener noreferrer", target: "_blank" },
       }),
       ResizableImage,
       TextStyle,
