@@ -26,6 +26,44 @@ const APPROVAL_REJECTED_MESSAGE =
 
 const DEFAULT_CALLS_PER_WEEK = 1;
 
+function formatLongDate(date: Date) {
+  return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "long", year: "numeric" }).format(date);
+}
+
+/** Mensagem detalhada de mentoria vencida — mostra o período, o motivo
+ * exato (prazo encerrado ou chamadas esgotadas), agradece e direciona pra
+ * consultar renovação no grupo do WhatsApp do mentorado. */
+function buildExpiredPlanMessage(input: {
+  reason: "duration" | "calls";
+  startsAt: string; // yyyy-MM-dd
+  endDate: Date | null;
+  callsUsed?: number;
+  callsLimit?: number;
+  groupLink: string | null;
+}) {
+  const start = formatLongDate(new Date(`${input.startsAt}T12:00:00`));
+  const periodo = input.endDate ? `${start} até ${formatLongDate(input.endDate)}` : `Início em ${start}`;
+
+  const motivo =
+    input.reason === "duration"
+      ? "o prazo da sua mentoria chegou ao fim."
+      : `o número de chamadas do seu plano foi atingido (${input.callsUsed} de ${input.callsLimit} chamadas realizadas).`;
+
+  const renovacao = input.groupLink
+    ? `Para consultar a renovação, fale com a gente pelo grupo do WhatsApp: ${input.groupLink}`
+    : "Para consultar a renovação, fale com a gente pelo grupo do WhatsApp da mentoria.";
+
+  return [
+    "Sua mentoria chegou ao fim.",
+    "",
+    `Período: ${periodo}`,
+    `Motivo: ${motivo}`,
+    "",
+    "Obrigado por todo esse tempo com a gente e por confiar na Aristocrata Society!",
+    renovacao,
+  ].join("\n");
+}
+
 async function countBookings(
   admin: ReturnType<typeof createAdminClient>,
   email: string,
@@ -108,20 +146,36 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
   const effectiveDurationDays = approval.duration_days_override ?? plan?.duration_days ?? null;
   const effectiveTotalCalls = approval.total_calls_override ?? plan?.total_calls ?? null;
 
-  if (effectiveDurationDays) {
-    const expiresAt = addDays(new Date(`${approval.starts_at}T00:00:00`), effectiveDurationDays);
-    if (now > expiresAt) {
-      return {
-        ok: false,
-        message: "Sua mentoria expirou. Entre em contato com um mentor para renovar seu acesso.",
-      };
-    }
+  const planEndDate = effectiveDurationDays
+    ? addDays(new Date(`${approval.starts_at}T00:00:00`), effectiveDurationDays)
+    : null;
+
+  if (planEndDate && now > planEndDate) {
+    return {
+      ok: false,
+      message: buildExpiredPlanMessage({
+        reason: "duration",
+        startsAt: approval.starts_at,
+        endDate: planEndDate,
+        groupLink: approval.group_link,
+      }),
+    };
   }
 
   if (effectiveTotalCalls) {
     const total = await countBookings(admin, menteeEmail);
     if (total >= effectiveTotalCalls) {
-      return { ok: false, message: "Você atingiu o limite total de chamadas do seu plano." };
+      return {
+        ok: false,
+        message: buildExpiredPlanMessage({
+          reason: "calls",
+          startsAt: approval.starts_at,
+          endDate: planEndDate,
+          callsUsed: total,
+          callsLimit: effectiveTotalCalls,
+          groupLink: approval.group_link,
+        }),
+      };
     }
   }
 

@@ -363,7 +363,7 @@ function CompleteProfileForm({
           required
         />
       </div>
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && <p className="text-sm whitespace-pre-line text-destructive">{error}</p>}
       <DialogFooter>
         <Button type="submit" disabled={pending} className="w-full">
           {pending && <Loader2 className="size-4 animate-spin" />}
@@ -470,7 +470,7 @@ function ConfirmBookingForm({
         <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
       </div>
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && <p className="text-sm whitespace-pre-line text-destructive">{error}</p>}
 
       <DialogFooter>
         <Button type="submit" disabled={pending} className="w-full">
