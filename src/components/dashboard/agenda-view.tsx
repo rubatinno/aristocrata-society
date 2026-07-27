@@ -109,7 +109,9 @@ export function AgendaView({
                 booking={booking}
                 timeZone={timeZone}
                 groupLink={groupLinkByEmail[booking.mentee_email]}
-                actions={<BookingActions bookingId={booking.id} />}
+                actions={
+                  <BookingActions bookingId={booking.id} startsAt={booking.starts_at} timeZone={timeZone} />
+                }
               />
             ))
           )}
@@ -134,7 +136,9 @@ export function AgendaView({
                 timeZone={timeZone}
                 pending
                 groupLink={groupLinkByEmail[booking.mentee_email]}
-                actions={<BookingActions bookingId={booking.id} />}
+                actions={
+                  <BookingActions bookingId={booking.id} startsAt={booking.starts_at} timeZone={timeZone} />
+                }
               />
             ))
           )}
