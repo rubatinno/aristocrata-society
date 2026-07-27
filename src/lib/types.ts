@@ -132,6 +132,17 @@ export type MenteeNote = {
   updated_at: string;
 };
 
+export type MenteeGoal = {
+  id: string;
+  mentee_id: string;
+  title: string;
+  is_completed: boolean;
+  completed_at: string | null;
+  position: number;
+  added_by: string | null;
+  created_at: string;
+};
+
 export type AvailabilityDate = {
   id: string;
   mentor_id: string;
@@ -258,6 +269,19 @@ export type Database = {
           updated_at?: string;
         };
         Update: Partial<MenteeNote>;
+        Relationships: [];
+      };
+      mentee_goals: {
+        Row: MenteeGoal;
+        Insert: Omit<MenteeGoal, "id" | "created_at" | "is_completed" | "completed_at" | "position" | "added_by"> & {
+          id?: string;
+          created_at?: string;
+          is_completed?: boolean;
+          completed_at?: string | null;
+          position?: number;
+          added_by?: string | null;
+        };
+        Update: Partial<MenteeGoal>;
         Relationships: [];
       };
       mentor_payments: {

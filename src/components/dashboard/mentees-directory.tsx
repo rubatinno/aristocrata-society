@@ -17,8 +17,10 @@ import {
 } from "@/app/dashboard/mentorados/actions";
 import { updateMenteePlan } from "@/app/dashboard/aprovacoes/actions";
 import { listMenteeNotes } from "@/app/agendar/anotacoes/actions";
+import { listMenteeGoals } from "@/app/agendar/progresso/actions";
 import { NotesWorkspace } from "@/components/mentee-area/notes-workspace";
-import type { ApprovedMentee, MenteeLink, MenteeNote, Plan } from "@/lib/types";
+import { GoalsWorkspace } from "@/components/mentee-area/goals-workspace";
+import type { ApprovedMentee, MenteeGoal, MenteeLink, MenteeNote, Plan } from "@/lib/types";
 import { formatFullDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
@@ -32,6 +34,7 @@ import {
   NotebookPen,
   Pencil,
   Plus,
+  Target,
   Trash2,
   Users,
 } from "lucide-react";
@@ -97,6 +100,9 @@ function MenteeCard({
   const [notes, setNotes] = useState<MenteeNote[] | null>(null);
   const [loadingNotes, setLoadingNotes] = useState(false);
   const [notesMaximized, setNotesMaximized] = useState(true);
+  const [goalsOpen, setGoalsOpen] = useState(false);
+  const [goals, setGoals] = useState<MenteeGoal[] | null>(null);
+  const [loadingGoals, setLoadingGoals] = useState(false);
   const [editingLimits, setEditingLimits] = useState(false);
   const [totalCallsInput, setTotalCallsInput] = useState(mentee.total_calls_override?.toString() ?? "");
   const [startDateInput, setStartDateInput] = useState(mentee.starts_at);
@@ -202,6 +208,20 @@ function MenteeCard({
     }
   }
 
+  async function handleOpenGoals() {
+    if (!mentee.user_id) return;
+    setLoadingGoals(true);
+    try {
+      const data = await listMenteeGoals(mentee.user_id);
+      setGoals(data);
+      setGoalsOpen(true);
+    } catch {
+      toast.error("Não foi possível carregar o progresso.");
+    } finally {
+      setLoadingGoals(false);
+    }
+  }
+
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
       <div className="flex flex-wrap items-center gap-3">
@@ -236,6 +256,18 @@ function MenteeCard({
         ) : (
           <Badge variant="outline">{mentee.plan?.name ?? "Sem plano (1/semana)"}</Badge>
         )}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleOpenGoals}
+          disabled={!mentee.user_id || loadingGoals}
+          title={!mentee.user_id ? "Mentorado ainda não criou a conta" : undefined}
+          className="gap-1.5"
+        >
+          {loadingGoals ? <Loader2 className="size-3.5 animate-spin" /> : <Target className="size-3.5" />}
+          Progresso
+        </Button>
         <Button
           type="button"
           variant="outline"
@@ -454,6 +486,26 @@ function MenteeCard({
                 revalidateTarget="/dashboard/mentorados"
                 className="flex-1"
               />
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {mentee.user_id && (
+        <Dialog open={goalsOpen} onOpenChange={setGoalsOpen}>
+          <DialogContent className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg" showCloseButton>
+            <DialogHeader className="shrink-0 border-b border-border p-4 pr-16">
+              <DialogTitle>Progresso · {mentee.full_name || mentee.email}</DialogTitle>
+            </DialogHeader>
+            {goals && (
+              <div className="flex-1 overflow-y-auto">
+                <GoalsWorkspace
+                  initialGoals={goals}
+                  menteeId={mentee.user_id}
+                  revalidateTarget="/dashboard/mentorados"
+                  canManage
+                />
+              </div>
             )}
           </DialogContent>
         </Dialog>
