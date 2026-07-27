@@ -113,7 +113,7 @@ export async function rescheduleBooking(
   });
 
   if (busy && busy.length > 0) {
-    return { ok: false, message: "Esse horário já está ocupado por outro agendamento." };
+    return { ok: false, message: "Você já tem uma chamada marcada nesse horário. Escolha outro horário." };
   }
 
   const { error } = await supabase
@@ -124,7 +124,7 @@ export async function rescheduleBooking(
 
   if (error) {
     if (error.code === "23P01") {
-      return { ok: false, message: "Esse horário já está ocupado por outro agendamento." };
+      return { ok: false, message: "Você já tem uma chamada marcada nesse horário. Escolha outro horário." };
     }
     return { ok: false, message: "Não foi possível reagendar. Tente novamente." };
   }
