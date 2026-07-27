@@ -18,6 +18,7 @@ import {
 import { updateMenteePlan } from "@/app/dashboard/aprovacoes/actions";
 import { listMenteeNotes } from "@/app/agendar/anotacoes/actions";
 import { listMenteeGoals } from "@/app/agendar/progresso/actions";
+import { startViewAsMentee } from "@/app/agendar/mentee-actions";
 import { NotesWorkspace } from "@/components/mentee-area/notes-workspace";
 import { GoalsWorkspace } from "@/components/mentee-area/goals-workspace";
 import type { ApprovedMentee, MenteeGoal, MenteeLink, MenteeNote, Plan } from "@/lib/types";
@@ -27,6 +28,7 @@ import {
   CalendarClock,
   CalendarX2,
   CheckCircle2,
+  Eye,
   ExternalLink,
   Loader2,
   Maximize2,
@@ -222,6 +224,13 @@ function MenteeCard({
     }
   }
 
+  function handleViewAsMentee() {
+    if (!mentee.user_id) return;
+    // startViewAsMentee redireciona (throw interno do Next.js) — sem
+    // try/catch aqui, igual ao padrão já usado em menteeSignOut.
+    void startViewAsMentee(mentee.user_id);
+  }
+
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
       <div className="flex flex-wrap items-center gap-3">
@@ -255,6 +264,20 @@ function MenteeCard({
           </Select>
         ) : (
           <Badge variant="outline">{mentee.plan?.name ?? "Sem plano (1/semana)"}</Badge>
+        )}
+        {isAdmin && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleViewAsMentee}
+            disabled={!mentee.user_id}
+            title={!mentee.user_id ? "Mentorado ainda não criou a conta" : undefined}
+            className="gap-1.5"
+          >
+            <Eye className="size-3.5" />
+            Visualizar como Mentorado
+          </Button>
         )}
         <Button
           type="button"

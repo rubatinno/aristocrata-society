@@ -91,6 +91,23 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
 
   if (!user) return { ok: false, message: "Faça login para agendar." };
 
+  // Ninguém com perfil de mentor/admin tem uma conta de mentorado de
+  // verdade — só chega aqui autenticado assim durante o "modo visualização"
+  // (ver startViewAsMentee). Agendar em nome do mentorado, de propósito,
+  // não é o objetivo dessa função.
+  const { data: mentorProfile } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (mentorProfile) {
+    return {
+      ok: false,
+      message: "Ações de agendamento estão desabilitadas no modo de visualização como mentorado.",
+    };
+  }
+
   const { data: menteeProfile } = await supabase
     .from("mentee_profiles")
     .select("*")

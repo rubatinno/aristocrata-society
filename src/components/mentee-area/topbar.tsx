@@ -7,7 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { menteeSignOut } from "@/app/agendar/mentee-actions";
+import { menteeSignOut, stopViewAsMentee } from "@/app/agendar/mentee-actions";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LogOut } from "lucide-react";
 
@@ -17,7 +17,15 @@ function initials(name: string) {
   return (parts[0][0] + (parts[1]?.[0] ?? "")).toUpperCase();
 }
 
-export function MenteeTopbar({ fullName, email }: { fullName: string; email: string }) {
+export function MenteeTopbar({
+  fullName,
+  email,
+  impersonating,
+}: {
+  fullName: string;
+  email: string;
+  impersonating?: boolean;
+}) {
   return (
     <header className="flex h-16 items-center justify-between border-b border-border bg-background px-4 sm:px-6">
       <p className="text-sm font-medium text-muted-foreground">Painel do mentorado</p>
@@ -37,9 +45,12 @@ export function MenteeTopbar({ fullName, email }: { fullName: string; email: str
               <p className="truncate text-sm font-medium">{fullName || "Mentorado"}</p>
               <p className="truncate text-xs text-muted-foreground">{email}</p>
             </div>
-            <DropdownMenuItem variant="destructive" onClick={() => void menteeSignOut()}>
+            <DropdownMenuItem
+              variant="destructive"
+              onClick={() => void (impersonating ? stopViewAsMentee() : menteeSignOut())}
+            >
               <LogOut className="size-4" />
-              Sair
+              {impersonating ? "Voltar ao meu painel" : "Sair"}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
