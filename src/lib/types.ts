@@ -132,10 +132,13 @@ export type MenteeNote = {
   updated_at: string;
 };
 
+export type GoalKind = "tarefa" | "meta";
+
 export type MenteeGoal = {
   id: string;
   mentee_id: string;
   title: string;
+  kind: GoalKind;
   is_completed: boolean;
   completed_at: string | null;
   position: number;
@@ -273,13 +276,17 @@ export type Database = {
       };
       mentee_goals: {
         Row: MenteeGoal;
-        Insert: Omit<MenteeGoal, "id" | "created_at" | "is_completed" | "completed_at" | "position" | "added_by"> & {
+        Insert: Omit<
+          MenteeGoal,
+          "id" | "created_at" | "is_completed" | "completed_at" | "position" | "added_by" | "kind"
+        > & {
           id?: string;
           created_at?: string;
           is_completed?: boolean;
           completed_at?: string | null;
           position?: number;
           added_by?: string | null;
+          kind?: GoalKind;
         };
         Update: Partial<MenteeGoal>;
         Relationships: [];

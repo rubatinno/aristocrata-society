@@ -1,14 +1,31 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition, type KeyboardEvent } from "react";
+import { useEffect, useState, useTransition, type KeyboardEvent } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
 import { createGoal, deleteGoal, toggleGoal } from "@/app/agendar/progresso/actions";
-import type { MenteeGoal } from "@/lib/types";
+import type { GoalKind, MenteeGoal } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Loader2, Plus, Target, Trash2 } from "lucide-react";
+
+const SECTIONS: { kind: GoalKind; title: string; emptyManage: string; emptyReadOnly: string; placeholder: string }[] = [
+  {
+    kind: "tarefa",
+    title: "Tarefas",
+    emptyManage: "Adicione as tarefas que o mentorado precisa realizar.",
+    emptyReadOnly: "Seu mentor ainda não adicionou tarefas.",
+    placeholder: "Nova tarefa...",
+  },
+  {
+    kind: "meta",
+    title: "Metas",
+    emptyManage: "Adicione os objetivos maiores da mentoria.",
+    emptyReadOnly: "Seu mentor ainda não definiu metas.",
+    placeholder: "Nova meta...",
+  },
+];
 
 export function GoalsWorkspace({
   initialGoals,
@@ -20,16 +37,11 @@ export function GoalsWorkspace({
   initialGoals: MenteeGoal[];
   menteeId: string;
   revalidateTarget: string;
-  /** Só o mentor pode criar/remover metas — o mentorado só marca como feita. */
+  /** Só o mentor pode criar/remover — o mentorado só marca como feito. */
   canManage: boolean;
   className?: string;
 }) {
   const [goals, setGoals] = useState(initialGoals);
-  const [newTitle, setNewTitle] = useState("");
-  const [isCreating, startCreating] = useTransition();
-  const [togglingId, setTogglingId] = useState<string | null>(null);
-  const [removingId, setRemovingId] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -70,8 +82,45 @@ export function GoalsWorkspace({
     };
   }, [menteeId]);
 
-  const total = goals.length;
-  const completed = goals.filter((g) => g.is_completed).length;
+  return (
+    <div className={cn("flex flex-col gap-6 p-6", className)}>
+      {SECTIONS.map((section) => (
+        <GoalSection
+          key={section.kind}
+          section={section}
+          items={goals.filter((g) => g.kind === section.kind)}
+          menteeId={menteeId}
+          revalidateTarget={revalidateTarget}
+          canManage={canManage}
+          setGoals={setGoals}
+        />
+      ))}
+    </div>
+  );
+}
+
+function GoalSection({
+  section,
+  items,
+  menteeId,
+  revalidateTarget,
+  canManage,
+  setGoals,
+}: {
+  section: (typeof SECTIONS)[number];
+  items: MenteeGoal[];
+  menteeId: string;
+  revalidateTarget: string;
+  canManage: boolean;
+  setGoals: React.Dispatch<React.SetStateAction<MenteeGoal[]>>;
+}) {
+  const [newTitle, setNewTitle] = useState("");
+  const [isCreating, startCreating] = useTransition();
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+
+  const total = items.length;
+  const completed = items.filter((g) => g.is_completed).length;
   const percent = total === 0 ? 0 : Math.round((completed / total) * 100);
 
   function handleCreate() {
@@ -79,12 +128,11 @@ export function GoalsWorkspace({
     if (!title) return;
     startCreating(async () => {
       try {
-        const goal = await createGoal(menteeId, title, revalidateTarget);
+        const goal = await createGoal(menteeId, title, section.kind, revalidateTarget);
         setGoals((prev) => [...prev, goal]);
         setNewTitle("");
-        inputRef.current?.focus();
       } catch {
-        toast.error("Não foi possível criar a meta.");
+        toast.error("Não foi possível criar o item.");
       }
     });
   }
@@ -108,7 +156,7 @@ export function GoalsWorkspace({
     );
     toggleGoal(goal.id, nextCompleted, revalidateTarget)
       .catch(() => {
-        toast.error("Não foi possível atualizar a meta.");
+        toast.error("Não foi possível atualizar o item.");
         setGoals((prev) =>
           prev.map((g) => (g.id === goal.id ? { ...g, is_completed: goal.is_completed, completed_at: goal.completed_at } : g)),
         );
@@ -120,40 +168,36 @@ export function GoalsWorkspace({
     setRemovingId(id);
     deleteGoal(id, revalidateTarget)
       .then(() => setGoals((prev) => prev.filter((g) => g.id !== id)))
-      .catch(() => toast.error("Não foi possível remover a meta."))
+      .catch(() => toast.error("Não foi possível remover o item."))
       .finally(() => setRemovingId(null));
   }
 
   return (
-    <div className={cn("flex flex-col gap-5 p-6", className)}>
-      <div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="font-medium">
-            {completed} de {total} {total === 1 ? "meta concluída" : "metas concluídas"}
+    <div>
+      <div className="flex items-center justify-between text-sm">
+        <span className="font-semibold">{section.title}</span>
+        {total > 0 && (
+          <span className="text-muted-foreground">
+            {completed}/{total} · {percent}%
           </span>
-          <span className="text-muted-foreground">{percent}%</span>
-        </div>
-        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full rounded-full bg-primary transition-all"
-            style={{ width: `${percent}%` }}
-          />
-        </div>
+        )}
       </div>
+      {total > 0 && (
+        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+          <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${percent}%` }} />
+        </div>
+      )}
 
-      {goals.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border py-14 text-center">
-          <Target className="size-8 text-muted-foreground" />
-          <p className="text-sm font-medium">Nenhuma meta ainda</p>
-          <p className="max-w-xs text-sm text-muted-foreground">
-            {canManage
-              ? "Adicione as etapas da mentoria abaixo pra acompanhar o progresso."
-              : "Seu mentor ainda não definiu as etapas da sua mentoria."}
+      {items.length === 0 ? (
+        <div className="mt-3 flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border py-8 text-center">
+          <Target className="size-6 text-muted-foreground" />
+          <p className="max-w-xs text-xs text-muted-foreground">
+            {canManage ? section.emptyManage : section.emptyReadOnly}
           </p>
         </div>
       ) : (
-        <div className="space-y-1.5">
-          {goals.map((goal) => (
+        <div className="mt-3 space-y-1.5">
+          {items.map((goal) => (
             <div
               key={goal.id}
               className="group flex items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5"
@@ -209,13 +253,12 @@ export function GoalsWorkspace({
       )}
 
       {canManage && (
-        <div className="flex items-center gap-2">
+        <div className="mt-3 flex items-center gap-2">
           <Input
-            ref={inputRef}
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
             onKeyDown={handleNewTitleKeyDown}
-            placeholder="Nova meta ou etapa..."
+            placeholder={section.placeholder}
             className="flex-1"
           />
           <Button type="button" onClick={handleCreate} disabled={isCreating || !newTitle.trim()} className="gap-1.5">

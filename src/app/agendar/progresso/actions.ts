@@ -2,12 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import type { MenteeGoal } from "@/lib/types";
+import type { GoalKind, MenteeGoal } from "@/lib/types";
 
 /**
- * Metas são compartilhadas entre o mentorado dono e qualquer mentor (RLS
- * cuida da permissão — ver migration 0025). `menteeId` sempre identifica o
- * dono das metas, não quem está chamando a action.
+ * Tarefas e metas são compartilhadas entre o mentorado dono e qualquer
+ * mentor (RLS cuida da permissão — ver migrations 0025/0026). `menteeId`
+ * sempre identifica o dono, não quem está chamando a action.
  */
 export async function listMenteeGoals(menteeId: string) {
   const supabase = await createClient();
@@ -20,7 +20,12 @@ export async function listMenteeGoals(menteeId: string) {
   return (data as MenteeGoal[]) ?? [];
 }
 
-export async function createGoal(menteeId: string, title: string, revalidateTarget: string) {
+export async function createGoal(
+  menteeId: string,
+  title: string,
+  kind: GoalKind,
+  revalidateTarget: string,
+) {
   const supabase = await createClient();
 
   const {
@@ -40,13 +45,14 @@ export async function createGoal(menteeId: string, title: string, revalidateTarg
     .insert({
       mentee_id: menteeId,
       title: title.trim(),
+      kind,
       position: (last?.position ?? -1) + 1,
       added_by: user?.id ?? null,
     })
     .select("*")
     .single();
 
-  if (error || !data) throw new Error("Não foi possível criar a meta.");
+  if (error || !data) throw new Error("Não foi possível criar o item.");
 
   revalidatePath(revalidateTarget);
   return data as MenteeGoal;
@@ -60,7 +66,7 @@ export async function toggleGoal(id: string, completed: boolean, revalidateTarge
     .update({ is_completed: completed, completed_at: completed ? new Date().toISOString() : null })
     .eq("id", id);
 
-  if (error) throw new Error("Não foi possível atualizar a meta.");
+  if (error) throw new Error("Não foi possível atualizar o item.");
 
   revalidatePath(revalidateTarget);
 }
@@ -69,7 +75,7 @@ export async function deleteGoal(id: string, revalidateTarget: string) {
   const supabase = await createClient();
 
   const { error } = await supabase.from("mentee_goals").delete().eq("id", id);
-  if (error) throw new Error("Não foi possível remover a meta.");
+  if (error) throw new Error("Não foi possível remover o item.");
 
   revalidatePath(revalidateTarget);
 }
