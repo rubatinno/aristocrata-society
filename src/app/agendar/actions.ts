@@ -17,6 +17,7 @@ export interface CreateBookingResult {
   ok: boolean;
   message?: string;
   needsApproval?: boolean;
+  expired?: boolean;
 }
 
 const APPROVAL_PENDING_MESSAGE =
@@ -32,14 +33,14 @@ function formatLongDate(date: Date) {
 
 /** Mensagem detalhada de mentoria vencida — mostra o período, o motivo
  * exato (prazo encerrado ou chamadas esgotadas), agradece e direciona pra
- * consultar renovação no grupo do WhatsApp do mentorado. */
+ * consultar renovação no grupo do WhatsApp do mentorado (sem expor o link
+ * em si — só a instrução). */
 function buildExpiredPlanMessage(input: {
   reason: "duration" | "calls";
   startsAt: string; // yyyy-MM-dd
   endDate: Date | null;
   callsUsed?: number;
   callsLimit?: number;
-  groupLink: string | null;
 }) {
   const start = formatLongDate(new Date(`${input.startsAt}T12:00:00`));
   const periodo = input.endDate ? `${start} até ${formatLongDate(input.endDate)}` : `Início em ${start}`;
@@ -49,9 +50,7 @@ function buildExpiredPlanMessage(input: {
       ? "o prazo da sua mentoria chegou ao fim."
       : `o número de chamadas do seu plano foi atingido (${input.callsUsed} de ${input.callsLimit} chamadas realizadas).`;
 
-  const renovacao = input.groupLink
-    ? `Para consultar a renovação, fale com a gente pelo grupo do WhatsApp: ${input.groupLink}`
-    : "Para consultar a renovação, fale com a gente pelo grupo do WhatsApp da mentoria.";
+  const renovacao = "Para consultar a renovação, fale com a gente pelo grupo do WhatsApp da mentoria.";
 
   return [
     "Sua mentoria chegou ao fim.",
@@ -153,11 +152,11 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
   if (planEndDate && now > planEndDate) {
     return {
       ok: false,
+      expired: true,
       message: buildExpiredPlanMessage({
         reason: "duration",
         startsAt: approval.starts_at,
         endDate: planEndDate,
-        groupLink: approval.group_link,
       }),
     };
   }
@@ -167,13 +166,13 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
     if (total >= effectiveTotalCalls) {
       return {
         ok: false,
+        expired: true,
         message: buildExpiredPlanMessage({
           reason: "calls",
           startsAt: approval.starts_at,
           endDate: planEndDate,
           callsUsed: total,
           callsLimit: effectiveTotalCalls,
-          groupLink: approval.group_link,
         }),
       };
     }

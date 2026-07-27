@@ -24,7 +24,7 @@ import {
 import { createBooking } from "@/app/agendar/actions";
 import { formatTime } from "@/lib/format";
 import type { Slot } from "@/lib/scheduling";
-import { CheckCircle2, Loader2, Mail } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Loader2, Mail } from "lucide-react";
 
 const PENDING_BOOKING_KEY = "pending_booking";
 
@@ -55,7 +55,8 @@ type Step =
   | { kind: "auth" }
   | { kind: "complete-profile" }
   | { kind: "confirm" }
-  | { kind: "needs-approval"; message: string };
+  | { kind: "needs-approval"; message: string }
+  | { kind: "expired"; message: string };
 
 const authInitialState: MenteeAuthState = { status: "idle" };
 
@@ -161,6 +162,7 @@ function BookingDialogSteps({
           defaultPhone={session.profile?.phone ?? ""}
           email={session.email}
           onNeedsApproval={(message) => setStep({ kind: "needs-approval", message })}
+          onExpired={(message) => setStep({ kind: "expired", message })}
           onBooked={() => onBooked(slot)}
         />
       )}
@@ -171,6 +173,15 @@ function BookingDialogSteps({
             <Mail className="size-4" /> Aprovação necessária
           </div>
           <p className="text-muted-foreground">{step.message}</p>
+        </div>
+      )}
+
+      {step.kind === "expired" && (
+        <div className="space-y-3 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm">
+          <div className="flex items-center gap-2 font-medium text-destructive">
+            <AlertTriangle className="size-4" /> Mentoria vencida
+          </div>
+          <p className="whitespace-pre-line text-muted-foreground">{step.message}</p>
         </div>
       )}
     </>
@@ -381,6 +392,7 @@ function ConfirmBookingForm({
   defaultPhone,
   email,
   onNeedsApproval,
+  onExpired,
   onBooked,
 }: {
   mentorId: string;
@@ -389,6 +401,7 @@ function ConfirmBookingForm({
   defaultPhone: string;
   email: string;
   onNeedsApproval: (message: string) => void;
+  onExpired: (message: string) => void;
   onBooked: () => void;
 }) {
   const [name, setName] = useState(defaultName);
@@ -425,6 +438,8 @@ function ConfirmBookingForm({
     if (!result.ok) {
       if (result.needsApproval) {
         onNeedsApproval(result.message ?? "");
+      } else if (result.expired) {
+        onExpired(result.message ?? "");
       } else {
         setError(result.message ?? "Não foi possível agendar. Tente novamente.");
       }
