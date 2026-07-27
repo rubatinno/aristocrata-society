@@ -21,7 +21,7 @@ export interface CreateBookingResult {
 }
 
 const APPROVAL_PENDING_MESSAGE =
-  "Seu agendamento está indisponível pois precisa de aprovação de um mentor. Envie um e-mail para o grupo da mentoria solicitando acesso.";
+  "Sua conta ainda não foi aprovada por um mentor, então esse horário não ficou reservado. Envie uma mensagem no grupo da mentoria solicitando acesso e, assim que for aprovado, volte aqui e marque novamente — a aprovação não agenda automaticamente o horário que você escolheu agora.";
 const APPROVAL_REJECTED_MESSAGE =
   "Seu acesso não foi aprovado. Envie um e-mail para o grupo da mentoria para mais informações.";
 
