@@ -69,7 +69,10 @@ export default async function MenteeHistoricoPage() {
       ? addDays(new Date(`${approval.starts_at}T00:00:00`), effectiveDurationDays)
       : null;
 
-  const completedCount = bookings.filter((b) => b.status === "concluida").length;
+  // "Não compareceu" conta como chamada realizada pro mentorado (consumiu o
+  // horário do plano) — só não conta pro mentor pra fins de remuneração
+  // (essa distinção fica em Controle/Financeiro, que olham só "concluida").
+  const completedCount = bookings.filter((b) => b.status === "concluida" || b.status === "no_show").length;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6">

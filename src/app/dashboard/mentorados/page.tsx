@@ -33,6 +33,9 @@ export default async function MentoradosPage() {
 
   // Chamadas realizadas contam em qualquer mentor da equipe, não só nas
   // próprias do mentor logado — precisa da service role pra enxergar tudo.
+  // "Não compareceu" também conta aqui: consumiu o horário do plano do
+  // mentorado igual uma concluída — só não conta pro mentor em
+  // Controle/Financeiro (remuneração fica restrita a "concluida").
   const completedByEmail = new Map<string, number>();
   if (menteeList.length > 0) {
     const admin = createAdminClient();
@@ -41,7 +44,7 @@ export default async function MentoradosPage() {
       .from("bookings")
       .select("mentee_email, status")
       .in("mentee_email", emails)
-      .eq("status", "concluida");
+      .in("status", ["concluida", "no_show"]);
 
     for (const booking of (bookings as Pick<Booking, "mentee_email" | "status">[]) ?? []) {
       completedByEmail.set(booking.mentee_email, (completedByEmail.get(booking.mentee_email) ?? 0) + 1);
