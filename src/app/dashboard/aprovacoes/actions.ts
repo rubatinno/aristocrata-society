@@ -53,8 +53,32 @@ export async function rejectMentee(id: string) {
   revalidatePath("/dashboard/mentorados");
 }
 
+/**
+ * Remove por completo — inclusive a conta de login, se já existir. Sem
+ * isso, o e-mail ficava "preso": o registro de aprovação sumia mas
+ * auth.users (e mentee_profiles) continuavam existindo, e um novo cadastro
+ * com o mesmo e-mail caía em "usuário já existe". Só mexe em contas de
+ * mentorado — mentor/admin têm fluxo próprio de remoção em Equipe.
+ */
 export async function removeMentee(id: string) {
   const supabase = await requireAdmin();
+
+  const { data: row } = await supabase
+    .from("approved_mentees")
+    .select("user_id, role")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (row?.role === "mentee" && row.user_id) {
+    const admin = createAdminClient();
+    const { error: authError } = await admin.auth.admin.deleteUser(row.user_id);
+    // user_not_found: a conta já não existia (ex: nunca chegou a se
+    // cadastrar) — segue normal, só a linha de aprovação precisa sumir.
+    if (authError && authError.code !== "user_not_found") {
+      throw new Error("Não foi possível remover a conta de login desse mentorado.");
+    }
+  }
+
   const { error } = await supabase.from("approved_mentees").delete().eq("id", id);
   if (error) throw new Error("Não foi possível remover.");
 
