@@ -63,6 +63,21 @@ export async function GET(request: NextRequest) {
 
     for (const booking of bookings) {
       try {
+        // "Reivindica" o envio antes de mandar qualquer coisa: só segue se
+        // essa execução foi quem conseguiu marcar a coluna (ainda nula) —
+        // evita e-mail duplicado quando duas execuções do cron (ex: um
+        // disparo manual coincidindo com o automático) pegam a mesma janela.
+        const update: Partial<Booking> = { [window.column]: now.toISOString() };
+        const { data: claimed } = await admin
+          .from("bookings")
+          .update(update)
+          .eq("id", booking.id)
+          .is(window.column, null)
+          .select("id")
+          .maybeSingle();
+
+        if (!claimed) continue;
+
         const mentor = await getMentor(booking.mentor_id);
 
         await Promise.allSettled([
@@ -97,9 +112,6 @@ export async function GET(request: NextRequest) {
               })
             : Promise.resolve(),
         ]);
-
-        const update: Partial<Booking> = { [window.column]: now.toISOString() };
-        await admin.from("bookings").update(update).eq("id", booking.id);
 
         sent += 1;
       } catch (err) {
