@@ -8,6 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { getMenteeSession } from "@/app/agendar/mentee-actions";
 import { isWeeklyLimitReached } from "@/lib/booking-limits";
+import { dateKey } from "@/lib/scheduling";
 import type { AvailabilityDate, AvailabilityRule, Plan, Profile } from "@/lib/types";
 
 export default async function AgendarPage({
@@ -40,12 +41,15 @@ export default async function AgendarPage({
           .select("*")
           .eq("mentor_id", profile.id)
           .eq("is_active", true),
+        // Data de "hoje" no fuso do PRÓPRIO mentor, não em UTC — em fusos
+        // negativos (ex: Brasil), UTC já vira o dia seguinte horas antes da
+        // meia-noite local, o que excluía indevidamente o resto do dia local.
         supabase
           .from("availability_dates")
           .select("*")
           .eq("mentor_id", profile.id)
           .eq("is_active", true)
-          .gte("date", now.toISOString().slice(0, 10)),
+          .gte("date", dateKey(now, profile.timezone)),
         supabase.rpc("get_busy_ranges", {
           p_mentor_id: profile.id,
           p_from: now.toISOString(),

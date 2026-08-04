@@ -16,8 +16,15 @@ function makeId() {
   return Math.random().toString(36).slice(2);
 }
 
+/** Data de hoje no fuso local do navegador — usar toISOString() aqui daria a
+ * data em UTC, que já é "amanhã" à noite em fusos negativos (ex: Brasil),
+ * bloqueando sem motivo a adição de um horário ainda hoje. */
 function todayKey() {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 /** Horário de término sugerido: 1h depois do início, sem passar de 23:59. */
