@@ -125,6 +125,11 @@ function AdminBookingDialog({
       }
       setMentorId(value);
       toast.success("Mentor alterado.");
+      // Se a lista estiver filtrada pelo mentor antigo, essa linha (e esse
+      // diálogo) some da tela assim que a página atualizar — fecha antes
+      // pra não deixar o diálogo "pendurado" apontando pra uma linha que já
+      // não existe mais na visão filtrada.
+      onOpenChange(false);
     });
   }
 
