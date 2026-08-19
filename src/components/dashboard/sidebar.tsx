@@ -10,6 +10,7 @@ import {
   Settings,
   Users,
   Layers,
+  LineChart,
   ShieldCheck,
   UsersRound,
   Wallet,
@@ -33,6 +34,7 @@ const baseLinks: NavLink[] = [
 ];
 
 const adminLinks: NavLink[] = [
+  { href: "/dashboard/gestao", label: "Gestão", icon: LineChart },
   { href: "/dashboard/aprovacoes", label: "Aprovações", icon: ShieldCheck },
   { href: "/dashboard/equipe", label: "Equipe", icon: UsersRound },
   { href: "/dashboard/planos", label: "Planos", icon: Layers },
