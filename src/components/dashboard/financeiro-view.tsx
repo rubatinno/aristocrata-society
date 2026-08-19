@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BookingRow } from "@/components/dashboard/booking-row";
+import { AdminBookingControls } from "@/components/dashboard/admin-booking-dialog";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import type { Booking, Profile } from "@/lib/types";
 import { CalendarClock, CalendarX2, CheckCircle2, Search, X } from "lucide-react";
@@ -216,6 +217,9 @@ export function FinanceiroView({ mentors, bookings }: { mentors: Profile[]; book
                 timeZone="America/Sao_Paulo"
                 mentorName={
                   mentors.find((m) => m.id === booking.mentor_id)?.full_name ?? "Mentor removido"
+                }
+                actions={
+                  <AdminBookingControls booking={booking} mentors={mentors} timeZone="America/Sao_Paulo" />
                 }
               />
             ))}
