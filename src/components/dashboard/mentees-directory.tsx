@@ -36,9 +36,11 @@ import {
   NotebookPen,
   Pencil,
   Plus,
+  Search,
   Target,
   Trash2,
   Users,
+  X,
 } from "lucide-react";
 
 const initialState: LinkFormState = { status: "idle" };
@@ -58,6 +60,26 @@ function addDaysToDateKey(dateKey: string, days: number) {
   return date.toISOString().slice(0, 10);
 }
 
+/** Vencido = prazo do plano já passou OU já usou todas as chamadas do plano. */
+function isMenteeExpired(mentee: MenteeWithDetails) {
+  const pastDeadline = mentee.daysRemaining !== null && mentee.daysRemaining < 0;
+  const usedAllCalls =
+    mentee.effectiveTotalCalls !== null && mentee.completedCalls >= mentee.effectiveTotalCalls;
+  return pastDeadline || usedAllCalls;
+}
+
+function matchesSearch(mentee: MenteeWithDetails, query: string) {
+  if (!query) return true;
+  const haystack = `${mentee.full_name ?? ""} ${mentee.email}`.toLowerCase();
+  return haystack.includes(query.toLowerCase());
+}
+
+const STATUS_ITEMS: Record<string, string> = {
+  all: "Todos",
+  active: "Ativos",
+  expired: "Vencidos",
+};
+
 export function MenteesDirectory({
   mentees,
   plans = [],
@@ -67,6 +89,9 @@ export function MenteesDirectory({
   plans?: Plan[];
   isAdmin?: boolean;
 }) {
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+
   if (mentees.length === 0) {
     return (
       <p className="rounded-2xl border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
@@ -75,11 +100,71 @@ export function MenteesDirectory({
     );
   }
 
+  const activeCount = mentees.filter((m) => !isMenteeExpired(m)).length;
+  const expiredCount = mentees.length - activeCount;
+
+  const filtered = mentees.filter((mentee) => {
+    if (!matchesSearch(mentee, query)) return false;
+    if (statusFilter === "active") return !isMenteeExpired(mentee);
+    if (statusFilter === "expired") return isMenteeExpired(mentee);
+    return true;
+  });
+
+  const hasFilters = query !== "" || statusFilter !== "all";
+
   return (
-    <div className="space-y-3">
-      {mentees.map((mentee) => (
-        <MenteeCard key={mentee.id} mentee={mentee} plans={plans} isAdmin={isAdmin} />
-      ))}
+    <div className="space-y-4">
+      {isAdmin && (
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-48 flex-1">
+            <Search className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Buscar por nome ou e-mail"
+              className="pl-8"
+            />
+          </div>
+          <Select value={statusFilter} onValueChange={(v) => v && setStatusFilter(v)} items={STATUS_ITEMS}>
+            <SelectTrigger className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(STATUS_ITEMS).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                  {value === "active" ? ` (${activeCount})` : value === "expired" ? ` (${expiredCount})` : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {hasFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setQuery("");
+                setStatusFilter("all");
+              }}
+              className="gap-1.5"
+            >
+              <X className="size-3.5" /> Limpar
+            </Button>
+          )}
+        </div>
+      )}
+
+      {filtered.length === 0 ? (
+        <p className="rounded-2xl border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
+          Nenhum mentorado encontrado com esses filtros.
+        </p>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map((mentee) => (
+            <MenteeCard key={mentee.id} mentee={mentee} plans={plans} isAdmin={isAdmin} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
