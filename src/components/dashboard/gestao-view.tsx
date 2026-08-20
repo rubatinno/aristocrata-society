@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { formatFullDate } from "@/lib/format";
+import { getWeekRange } from "@/lib/date-presets";
 import { cn } from "@/lib/utils";
 import {
   CalendarX2,
@@ -48,6 +49,24 @@ function isFrequent(m: MenteeInsight) {
 function isInactive(m: MenteeInsight) {
   if (m.isUpcoming) return false;
   return m.daysSinceLastBooking === null || m.daysSinceLastBooking > INACTIVE_THRESHOLD_DAYS;
+}
+
+/** yyyy-MM-dd no fuso local do navegador, a partir de um ISO em UTC. */
+function localDateKey(iso: string): string {
+  const d = new Date(iso);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function matchesLastCallRange(m: MenteeInsight, from: string, to: string) {
+  if (!from && !to) return true;
+  if (!m.lastBookingStartsAt) return false;
+  const day = localDateKey(m.lastBookingStartsAt);
+  if (from && day < from) return false;
+  if (to && day > to) return false;
+  return true;
 }
 
 function matchesSearch(m: MenteeInsight, query: string) {
@@ -110,6 +129,8 @@ export function GestaoView({ insights }: { insights: MenteeInsight[] }) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [minDaysInactive, setMinDaysInactive] = useState("");
+  const [lastCallFrom, setLastCallFrom] = useState("");
+  const [lastCallTo, setLastCallTo] = useState("");
 
   const counts = useMemo(
     () => ({
@@ -138,15 +159,34 @@ export function GestaoView({ insights }: { insights: MenteeInsight[] }) {
         if (minDays === null || Number.isNaN(minDays)) return true;
         return (m.daysSinceLastBooking ?? Infinity) >= minDays;
       })
+      .filter((m) => matchesLastCallRange(m, lastCallFrom, lastCallTo))
       .sort((a, b) => (b.daysSinceLastBooking ?? Infinity) - (a.daysSinceLastBooking ?? Infinity));
-  }, [insights, query, statusFilter, minDaysInactive]);
+  }, [insights, query, statusFilter, minDaysInactive, lastCallFrom, lastCallTo]);
 
-  const hasFilters = query !== "" || statusFilter !== "all" || minDaysInactive !== "";
+  const hasFilters =
+    query !== "" ||
+    statusFilter !== "all" ||
+    minDaysInactive !== "" ||
+    lastCallFrom !== "" ||
+    lastCallTo !== "";
+
+  function applyWeekPreset(weeksAgo: number) {
+    const { from, to } = getWeekRange(weeksAgo);
+    setLastCallFrom(from);
+    setLastCallTo(to);
+  }
+
+  const thisWeek = getWeekRange(0);
+  const lastWeek = getWeekRange(1);
+  const isThisWeek = lastCallFrom === thisWeek.from && lastCallTo === thisWeek.to;
+  const isLastWeek = lastCallFrom === lastWeek.from && lastCallTo === lastWeek.to;
 
   function clearFilters() {
     setQuery("");
     setStatusFilter("all");
     setMinDaysInactive("");
+    setLastCallFrom("");
+    setLastCallTo("");
   }
 
   function toggleStatCard(value: string) {
@@ -233,6 +273,34 @@ export function GestaoView({ insights }: { insights: MenteeInsight[] }) {
             <X className="size-3.5" /> Limpar
           </Button>
         )}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm text-muted-foreground">Última chamada:</span>
+        <Input
+          type="date"
+          value={lastCallFrom}
+          onChange={(e) => setLastCallFrom(e.target.value)}
+          className="w-40"
+        />
+        <span className="text-sm text-muted-foreground">até</span>
+        <Input type="date" value={lastCallTo} onChange={(e) => setLastCallTo(e.target.value)} className="w-40" />
+        <Button
+          type="button"
+          variant={isThisWeek ? "default" : "outline"}
+          size="sm"
+          onClick={() => applyWeekPreset(0)}
+        >
+          Esta semana
+        </Button>
+        <Button
+          type="button"
+          variant={isLastWeek ? "default" : "outline"}
+          size="sm"
+          onClick={() => applyWeekPreset(1)}
+        >
+          Semana passada
+        </Button>
       </div>
 
       <div>

@@ -10,6 +10,7 @@ import type { Booking, Profile } from "@/lib/types";
 import { CalendarClock, CalendarX2, CheckCircle2, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { getWeekRange } from "@/lib/date-presets";
 
 const STATUS_ITEMS: Record<string, string> = {
   all: "Todos os status",
@@ -48,6 +49,17 @@ export function FinanceiroView({ mentors, bookings }: { mentors: Profile[]; book
     setStatusFilter("all");
     setMentorFilter("all");
   }
+
+  function applyWeekPreset(weeksAgo: number) {
+    const { from: weekFrom, to: weekTo } = getWeekRange(weeksAgo);
+    setFrom(weekFrom);
+    setTo(weekTo);
+  }
+
+  const thisWeek = getWeekRange(0);
+  const lastWeek = getWeekRange(1);
+  const isThisWeek = from === thisWeek.from && to === thisWeek.to;
+  const isLastWeek = from === lastWeek.from && to === lastWeek.to;
 
   // Base: respeita busca, período e status — mas não o mentor selecionado,
   // pra o resumo por mentor sempre comparar a equipe inteira.
@@ -110,6 +122,22 @@ export function FinanceiroView({ mentors, bookings }: { mentors: Profile[]; book
         <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-40" />
         <span className="text-sm text-muted-foreground">até</span>
         <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-40" />
+        <Button
+          type="button"
+          variant={isThisWeek ? "default" : "outline"}
+          size="sm"
+          onClick={() => applyWeekPreset(0)}
+        >
+          Esta semana
+        </Button>
+        <Button
+          type="button"
+          variant={isLastWeek ? "default" : "outline"}
+          size="sm"
+          onClick={() => applyWeekPreset(1)}
+        >
+          Semana passada
+        </Button>
         <Select value={statusFilter} onValueChange={(v) => v && setStatusFilter(v)} items={STATUS_ITEMS}>
           <SelectTrigger className="w-44">
             <SelectValue />
