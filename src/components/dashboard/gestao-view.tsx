@@ -10,6 +10,7 @@ import { formatFullDate } from "@/lib/format";
 import { getWeekRange } from "@/lib/date-presets";
 import { cn } from "@/lib/utils";
 import {
+  AlertTriangle,
   CalendarX2,
   CheckCircle2,
   Flame,
@@ -31,9 +32,11 @@ export interface MenteeInsight {
   completedCalls: number;
   noShowCount: number;
   attendanceRate: number | null; // 0-100
+  pendingCount: number;
   totalBookings: number;
   lastBookingStartsAt: string | null;
   isUpcoming: boolean;
+  lastBookingPending: boolean;
   daysSinceLastBooking: number | null;
   isExpired: boolean;
   lastMentorName: string | null;
@@ -81,6 +84,7 @@ const STATUS_ITEMS: Record<string, string> = {
   expired: "Vencidos",
   frequent: "Frequentes",
   inactive: "Inativos",
+  pending: "Pendentes",
 };
 
 function StatCard({
@@ -120,9 +124,8 @@ function lastCallLabel(m: MenteeInsight) {
   if (!m.lastBookingStartsAt) return "Nunca marcou";
   if (m.isUpcoming) return `Agendada · ${formatFullDate(new Date(m.lastBookingStartsAt), "America/Sao_Paulo")}`;
   const days = m.daysSinceLastBooking ?? 0;
-  if (days === 0) return "Hoje";
-  if (days === 1) return "Há 1 dia";
-  return `Há ${days} dias`;
+  const when = days === 0 ? "Hoje" : days === 1 ? "Há 1 dia" : `Há ${days} dias`;
+  return m.lastBookingPending ? `${when} · aguardando confirmação` : when;
 }
 
 export function GestaoView({ insights }: { insights: MenteeInsight[] }) {
@@ -139,6 +142,7 @@ export function GestaoView({ insights }: { insights: MenteeInsight[] }) {
       expired: insights.filter((m) => m.isExpired).length,
       frequent: insights.filter(isFrequent).length,
       inactive: insights.filter(isInactive).length,
+      pending: insights.filter((m) => m.pendingCount > 0).length,
     }),
     [insights],
   );
@@ -153,6 +157,7 @@ export function GestaoView({ insights }: { insights: MenteeInsight[] }) {
         if (statusFilter === "expired") return m.isExpired;
         if (statusFilter === "frequent") return isFrequent(m);
         if (statusFilter === "inactive") return isInactive(m);
+        if (statusFilter === "pending") return m.pendingCount > 0;
         return true;
       })
       .filter((m) => {
@@ -195,7 +200,7 @@ export function GestaoView({ insights }: { insights: MenteeInsight[] }) {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
         <StatCard
           icon={Users}
           label="Total de mentorados"
@@ -235,6 +240,14 @@ export function GestaoView({ insights }: { insights: MenteeInsight[] }) {
           tone="bg-amber-500/15 text-amber-600 dark:text-amber-400"
           active={statusFilter === "inactive"}
           onClick={() => toggleStatCard("inactive")}
+        />
+        <StatCard
+          icon={AlertTriangle}
+          label="Pendentes de confirmação"
+          value={counts.pending}
+          tone="bg-amber-500/15 text-amber-600 dark:text-amber-400"
+          active={statusFilter === "pending"}
+          onClick={() => toggleStatCard("pending")}
         />
       </div>
 
@@ -334,6 +347,15 @@ export function GestaoView({ insights }: { insights: MenteeInsight[] }) {
                     {isInactive(m) && (
                       <span className="flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">
                         <MoonStar className="size-3" /> Inativo
+                      </span>
+                    )}
+                    {m.pendingCount > 0 && (
+                      <span
+                        className="flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400"
+                        title="Chamada já passou mas o mentor ainda não marcou se compareceu"
+                      >
+                        <AlertTriangle className="size-3" />
+                        {m.pendingCount > 1 ? `Pendente (${m.pendingCount})` : "Pendente"}
                       </span>
                     )}
                   </div>

@@ -76,9 +76,16 @@ export default async function GestaoPage() {
     const attendanceRate =
       completedCalls > 0 ? Math.round(((completedCalls - noShowCount) / completedCalls) * 100) : null;
 
+    // Chamada já passou mas o mentor ainda não marcou se ele compareceu ou
+    // não — mesmo critério da aba "Pendentes" em Agenda.
+    const pendingCount = menteeBookings.filter(
+      (b) => b.status === "confirmada" && new Date(b.starts_at) < now,
+    ).length;
+
     const lastBooking = menteeBookings[0] ?? null;
     const lastBookingStartsAt = lastBooking?.starts_at ?? null;
     const isUpcoming = lastBookingStartsAt ? new Date(lastBookingStartsAt) > now : false;
+    const lastBookingPending = lastBooking?.status === "confirmada" && !isUpcoming;
     const daysSinceLastBooking = lastBookingStartsAt
       ? Math.floor((now.getTime() - new Date(lastBookingStartsAt).getTime()) / (1000 * 60 * 60 * 24))
       : null;
@@ -97,9 +104,11 @@ export default async function GestaoPage() {
       completedCalls,
       noShowCount,
       attendanceRate,
+      pendingCount,
       totalBookings: menteeBookings.length,
       lastBookingStartsAt,
       isUpcoming,
+      lastBookingPending,
       daysSinceLastBooking,
       isExpired: pastDeadline || usedAllCalls,
       lastMentorName: lastBooking ? (mentorNameById.get(lastBooking.mentor_id) ?? null) : null,
