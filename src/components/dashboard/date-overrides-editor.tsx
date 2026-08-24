@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -57,6 +57,20 @@ function buildInitialState(dates: AvailabilityDate[]): DateEntry[] {
 export function DateOverridesEditor({ initialDates }: { initialDates: AvailabilityDate[] }) {
   const [entries, setEntries] = useState<DateEntry[]>(() => buildInitialState(initialDates));
   const [isPending, startTransition] = useTransition();
+
+  // Exibe sempre em ordem cronológica, não importa a ordem em que o mentor
+  // adicionou as datas/horários — sem isso, adicionar uma data anterior
+  // depois de uma posterior deixava a lista fora de ordem.
+  const sortedEntries = useMemo(
+    () =>
+      [...entries]
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map((entry) => ({
+          ...entry,
+          blocks: [...entry.blocks].sort((a, b) => a.start.localeCompare(b.start)),
+        })),
+    [entries],
+  );
 
   function addDate() {
     setEntries((prev) => [
@@ -137,7 +151,7 @@ export function DateOverridesEditor({ initialDates }: { initialDates: Availabili
         </p>
       ) : (
         <div className="space-y-3">
-          {entries.map((entry) => (
+          {sortedEntries.map((entry) => (
             <div key={entry.id} className="rounded-2xl border border-border bg-card p-4">
               <div className="flex items-center gap-2">
                 <Input
