@@ -38,7 +38,7 @@ export async function saveDateOverrides(overrides: DateOverrideInput[]) {
   if (pastRow) {
     const [year, month, day] = pastRow.date.split("-");
     throw new Error(
-      `O horário ${pastRow.start_time} de ${day}/${month}/${year} já passou. Remova ou corrija antes de salvar.`,
+      `O horário das ${pastRow.start_time.slice(0, 5)} do dia ${day}/${month}/${year} já passou. Altere para um horário futuro ou remova esse horário antes de salvar as demais datas.`,
     );
   }
 
