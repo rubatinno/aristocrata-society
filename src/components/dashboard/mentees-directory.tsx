@@ -19,11 +19,21 @@ import { adminSetMenteePassword, updateMenteePlan } from "@/app/dashboard/aprova
 import { listMenteeNotes } from "@/app/agendar/anotacoes/actions";
 import { listMenteeGoals } from "@/app/agendar/progresso/actions";
 import { getMenteeSummary } from "@/app/dashboard/mentorados/summary-actions";
+import { listMenteeProducts, listProductCreatives } from "@/app/agendar/produtos/actions";
 import { startViewAsMentee } from "@/app/agendar/mentee-actions";
 import { NotesWorkspace } from "@/components/mentee-area/notes-workspace";
 import { GoalsWorkspace } from "@/components/mentee-area/goals-workspace";
 import { SummaryWorkspace } from "@/components/mentee-area/summary-workspace";
-import type { ApprovedMentee, MenteeGoal, MenteeLink, MenteeNote, Plan } from "@/lib/types";
+import { ProdutosWorkspace } from "@/components/mentee-area/produtos-workspace";
+import type {
+  ApprovedMentee,
+  MenteeGoal,
+  MenteeLink,
+  MenteeNote,
+  MenteeProduct,
+  MenteeProductCreative,
+  Plan,
+} from "@/lib/types";
 import { formatFullDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
@@ -38,6 +48,7 @@ import {
   Maximize2,
   Minimize2,
   NotebookPen,
+  Package,
   Pencil,
   Plus,
   Search,
@@ -197,6 +208,10 @@ function MenteeCard({
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [summaryContent, setSummaryContent] = useState<string | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
+  const [productsOpen, setProductsOpen] = useState(false);
+  const [products, setProducts] = useState<MenteeProduct[] | null>(null);
+  const [productCreatives, setProductCreatives] = useState<MenteeProductCreative[] | null>(null);
+  const [loadingProducts, setLoadingProducts] = useState(false);
   const [editingLimits, setEditingLimits] = useState(false);
   const [totalCallsInput, setTotalCallsInput] = useState(mentee.total_calls_override?.toString() ?? "");
   const [startDateInput, setStartDateInput] = useState(mentee.starts_at);
@@ -333,6 +348,24 @@ function MenteeCard({
     }
   }
 
+  async function handleOpenProducts() {
+    if (!mentee.user_id) return;
+    setLoadingProducts(true);
+    try {
+      const [productsData, creativesData] = await Promise.all([
+        listMenteeProducts(mentee.user_id),
+        listProductCreatives(mentee.user_id),
+      ]);
+      setProducts(productsData);
+      setProductCreatives(creativesData);
+      setProductsOpen(true);
+    } catch {
+      toast.error("Não foi possível carregar os produtos.");
+    } finally {
+      setLoadingProducts(false);
+    }
+  }
+
   function handleViewAsMentee() {
     if (!mentee.user_id) return;
     // startViewAsMentee redireciona (throw interno do Next.js) — sem
@@ -441,6 +474,18 @@ function MenteeCard({
         >
           {loadingSummary ? <Loader2 className="size-3.5 animate-spin" /> : <FileText className="size-3.5" />}
           Resumo
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleOpenProducts}
+          disabled={!mentee.user_id || loadingProducts}
+          title={!mentee.user_id ? "Mentorado ainda não criou a conta" : undefined}
+          className="gap-1.5"
+        >
+          {loadingProducts ? <Loader2 className="size-3.5 animate-spin" /> : <Package className="size-3.5" />}
+          Produtos
         </Button>
         {isAdmin && (
           <Button
@@ -698,6 +743,25 @@ function MenteeCard({
                 initialContent={summaryContent}
                 menteeId={mentee.user_id}
                 revalidateTarget="/dashboard/mentorados"
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {mentee.user_id && (
+        <Dialog open={productsOpen} onOpenChange={setProductsOpen}>
+          <DialogContent className="flex h-[75vh] max-w-3xl flex-col gap-0 p-0 sm:max-w-3xl" showCloseButton>
+            <DialogHeader className="shrink-0 border-b border-border p-4 pr-16">
+              <DialogTitle>Produtos · {mentee.full_name || mentee.email}</DialogTitle>
+            </DialogHeader>
+            {products && productCreatives && (
+              <ProdutosWorkspace
+                initialProducts={products}
+                initialCreatives={productCreatives}
+                menteeId={mentee.user_id}
+                revalidateTarget="/dashboard/mentorados"
+                className="flex-1"
               />
             )}
           </DialogContent>

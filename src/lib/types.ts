@@ -140,6 +140,29 @@ export type MenteeSummary = {
   updated_at: string;
 };
 
+/** Central de produtos do mentorado — "pastinha" por produto, com os
+ * criativos testados dentro. Compartilhado entre o mentorado dono e
+ * qualquer mentor (mesmo modelo de mentee_notes). */
+export type MenteeProduct = {
+  id: string;
+  mentee_id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type MenteeProductCreative = {
+  id: string;
+  product_id: string;
+  mentee_id: string;
+  title: string;
+  link: string;
+  validated: boolean;
+  sales: number;
+  created_at: string;
+  updated_at: string;
+};
+
 export type GoalKind = "tarefa" | "meta";
 
 export type MenteeGoal = {
@@ -303,6 +326,32 @@ export type Database = {
         Row: MenteeSummary;
         Insert: Omit<MenteeSummary, "updated_at"> & { updated_at?: string };
         Update: Partial<MenteeSummary>;
+        Relationships: [];
+      };
+      mentee_products: {
+        Row: MenteeProduct;
+        Insert: Omit<MenteeProduct, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<MenteeProduct>;
+        Relationships: [];
+      };
+      mentee_product_creatives: {
+        Row: MenteeProductCreative;
+        Insert: Omit<
+          MenteeProductCreative,
+          "id" | "created_at" | "updated_at" | "link" | "validated" | "sales"
+        > & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+          link?: string;
+          validated?: boolean;
+          sales?: number;
+        };
+        Update: Partial<MenteeProductCreative>;
         Relationships: [];
       };
       mentor_payments: {

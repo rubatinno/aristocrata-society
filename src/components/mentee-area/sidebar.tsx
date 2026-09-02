@@ -3,7 +3,15 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, History, Link as LinkIcon, NotebookPen, Target, type LucideIcon } from "lucide-react";
+import {
+  CalendarDays,
+  History,
+  Link as LinkIcon,
+  NotebookPen,
+  Package,
+  Target,
+  type LucideIcon,
+} from "lucide-react";
 import { LogoMark } from "@/components/logo";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +24,7 @@ const links: NavLink[] = [
   { href: "/agendar/links", label: "Links importantes", icon: LinkIcon },
   { href: "/agendar/anotacoes", label: "Anotações", icon: NotebookPen },
   { href: "/agendar/progresso", label: "Progresso", icon: Target },
+  { href: "/agendar/produtos", label: "Produtos", icon: Package },
   { href: DISCORD_URL, label: "Discord Oficial", iconSrc: "/icons/discord.png", external: true },
   { href: "/agendar/historico", label: "Histórico", icon: History },
 ];
