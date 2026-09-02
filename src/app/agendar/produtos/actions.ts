@@ -68,20 +68,32 @@ export async function deleteProduct(id: string, revalidateTarget: string) {
   revalidatePath(revalidateTarget);
 }
 
-export async function createCreative(productId: string, menteeId: string, revalidateTarget: string) {
-  const supabase = await createClient();
+export interface NewCreativeInput {
+  title: string;
+  link: string;
+  validated: boolean;
+  sales: number;
+  testDate: string | null;
+}
 
-  const { count } = await supabase
-    .from("mentee_product_creatives")
-    .select("*", { count: "exact", head: true })
-    .eq("product_id", productId);
+export async function createCreative(
+  productId: string,
+  menteeId: string,
+  input: NewCreativeInput,
+  revalidateTarget: string,
+) {
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("mentee_product_creatives")
     .insert({
       product_id: productId,
       mentee_id: menteeId,
-      title: `Criativo ${(count ?? 0) + 1}`,
+      title: input.title.trim() || "Novo criativo",
+      link: input.link.trim(),
+      validated: input.validated,
+      sales: input.sales,
+      test_date: input.testDate,
     })
     .select("*")
     .single();
@@ -97,6 +109,7 @@ export interface CreativePatch {
   link?: string;
   validated?: boolean;
   sales?: number;
+  test_date?: string | null;
 }
 
 export async function updateCreative(id: string, patch: CreativePatch, revalidateTarget: string) {

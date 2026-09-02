@@ -159,6 +159,7 @@ export type MenteeProductCreative = {
   link: string;
   validated: boolean;
   sales: number;
+  test_date: string | null; // "yyyy-MM-dd"
   created_at: string;
   updated_at: string;
 };
@@ -342,7 +343,7 @@ export type Database = {
         Row: MenteeProductCreative;
         Insert: Omit<
           MenteeProductCreative,
-          "id" | "created_at" | "updated_at" | "link" | "validated" | "sales"
+          "id" | "created_at" | "updated_at" | "link" | "validated" | "sales" | "test_date"
         > & {
           id?: string;
           created_at?: string;
@@ -350,6 +351,7 @@ export type Database = {
           link?: string;
           validated?: boolean;
           sales?: number;
+          test_date?: string | null;
         };
         Update: Partial<MenteeProductCreative>;
         Relationships: [];

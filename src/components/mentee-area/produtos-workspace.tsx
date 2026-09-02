@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { createClient } from "@/lib/supabase/client";
 import {
   createCreative,
@@ -13,11 +14,15 @@ import {
   deleteProduct,
   renameProduct,
   updateCreative,
+  type NewCreativeInput,
 } from "@/app/agendar/produtos/actions";
 import type { MenteeProduct, MenteeProductCreative } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import {
+  ArrowDownWideNarrow,
   ArrowLeft,
+  ArrowUpNarrowWide,
+  CalendarDays,
   Check,
   ExternalLink,
   Link2,
@@ -26,8 +31,20 @@ import {
   Pencil,
   Plus,
   ShoppingBag,
+  Sparkles,
   Trash2,
+  X,
 } from "lucide-react";
+
+/** Data de hoje no fuso local do navegador — toISOString() daria a data em
+ * UTC, que já é "amanhã" à noite em fusos negativos (ex: Brasil). */
+function todayKey() {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 function ProductStats({ creatives }: { creatives: MenteeProductCreative[] }) {
   const validated = creatives.filter((c) => c.validated).length;
@@ -323,14 +340,32 @@ export function ProdutosWorkspace({
   );
 }
 
-type SortOption = "recent" | "sales" | "validated" | "name";
+type SortField = "recent" | "test_date" | "sales" | "validated" | "name";
+type SortDirection = "asc" | "desc";
 
-const SORT_ITEMS: Record<SortOption, string> = {
-  recent: "Mais recente",
-  sales: "Mais vendas",
-  validated: "Validados primeiro",
-  name: "Nome (A-Z)",
+const SORT_FIELD_ITEMS: Record<SortField, string> = {
+  recent: "Data de criação",
+  test_date: "Data de teste",
+  sales: "Vendas",
+  validated: "Validado",
+  name: "Nome",
 };
+
+function compareCreatives(a: MenteeProductCreative, b: MenteeProductCreative, field: SortField) {
+  switch (field) {
+    case "sales":
+      return a.sales - b.sales;
+    case "validated":
+      return Number(a.validated) - Number(b.validated);
+    case "name":
+      return a.title.localeCompare(b.title);
+    case "test_date":
+      return (a.test_date ?? "").localeCompare(b.test_date ?? "");
+    case "recent":
+    default:
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+  }
+}
 
 function ProductFolder({
   product,
@@ -347,19 +382,20 @@ function ProductFolder({
   setCreatives: React.Dispatch<React.SetStateAction<MenteeProductCreative[]>>;
   onBack: () => void;
 }) {
-  const [isCreating, setIsCreating] = useState(false);
-  const [justCreatedId, setJustCreatedId] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<SortOption>("recent");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [sortField, setSortField] = useState<SortField>("recent");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
-  function handleNewCreative() {
-    setIsCreating(true);
-    createCreative(product.id, menteeId, revalidateTarget)
-      .then((creative) => {
-        setCreatives((prev) => [...prev, creative]);
-        setJustCreatedId(creative.id);
-      })
-      .catch(() => toast.error("Não foi possível criar o criativo."))
-      .finally(() => setIsCreating(false));
+  async function handleCreateCreative(input: NewCreativeInput) {
+    try {
+      const creative = await createCreative(product.id, menteeId, input, revalidateTarget);
+      setCreatives((prev) => [...prev, creative]);
+      setIsDialogOpen(false);
+    } catch {
+      toast.error("Não foi possível criar o criativo.");
+    }
   }
 
   function handleDeleteCreative(id: string) {
@@ -371,20 +407,21 @@ function ProductFolder({
     setCreatives((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
   }
 
-  const sortedCreatives = useMemo(() => {
-    const list = [...creatives];
-    switch (sortBy) {
-      case "sales":
-        return list.sort((a, b) => b.sales - a.sales);
-      case "validated":
-        return list.sort((a, b) => Number(b.validated) - Number(a.validated));
-      case "name":
-        return list.sort((a, b) => a.title.localeCompare(b.title));
-      case "recent":
-      default:
-        return list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  const hasDateFilter = dateFrom !== "" || dateTo !== "";
+
+  const visibleCreatives = useMemo(() => {
+    let list = creatives;
+    if (hasDateFilter) {
+      list = list.filter((c) => {
+        if (!c.test_date) return false;
+        if (dateFrom && c.test_date < dateFrom) return false;
+        if (dateTo && c.test_date > dateTo) return false;
+        return true;
+      });
     }
-  }, [creatives, sortBy]);
+    const sorted = [...list].sort((a, b) => compareCreatives(a, b, sortField));
+    return sortDirection === "asc" ? sorted : sorted.reverse();
+  }, [creatives, sortField, sortDirection, dateFrom, dateTo, hasDateFilter]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -396,11 +433,18 @@ function ProductFolder({
           <h2 className="truncate font-heading text-lg font-semibold">{product.name}</h2>
           <ProductStats creatives={creatives} />
         </div>
-        <Button type="button" onClick={handleNewCreative} disabled={isCreating} className="shrink-0 gap-1.5">
-          {isCreating ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
+        <Button type="button" onClick={() => setIsDialogOpen(true)} className="shrink-0 gap-1.5">
+          <Plus className="size-3.5" />
           Novo criativo
         </Button>
       </div>
+
+      <NewCreativeDialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        defaultTitle={`Criativo ${creatives.length + 1}`}
+        onCreate={handleCreateCreative}
+      />
 
       {creatives.length === 0 ? (
         <div className="mt-6 flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border py-14 text-center">
@@ -412,37 +456,201 @@ function ProductFolder({
         </div>
       ) : (
         <>
-          <div className="mt-4 flex items-center gap-2">
+          <div className="mt-4 flex flex-wrap items-center gap-2">
             <span className="text-xs text-muted-foreground">Ordenar por</span>
-            <Select value={sortBy} onValueChange={(v) => v && setSortBy(v as SortOption)} items={SORT_ITEMS}>
-              <SelectTrigger className="h-8 w-44 text-xs">
+            <Select
+              value={sortField}
+              onValueChange={(v) => v && setSortField(v as SortField)}
+              items={SORT_FIELD_ITEMS}
+            >
+              <SelectTrigger className="h-8 w-40 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(SORT_ITEMS).map(([value, label]) => (
+                {Object.entries(SORT_FIELD_ITEMS).map(([value, label]) => (
                   <SelectItem key={value} value={value}>
                     {label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setSortDirection((d) => (d === "asc" ? "desc" : "asc"))}
+              className="h-8 gap-1.5 text-xs"
+            >
+              {sortDirection === "asc" ? (
+                <ArrowUpNarrowWide className="size-3.5" />
+              ) : (
+                <ArrowDownWideNarrow className="size-3.5" />
+              )}
+              {sortDirection === "asc" ? "Crescente" : "Decrescente"}
+            </Button>
+
+            <span className="ml-2 text-xs text-muted-foreground">Data de teste</span>
+            <Input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="h-8 w-36 text-xs"
+            />
+            <span className="text-xs text-muted-foreground">até</span>
+            <Input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="h-8 w-36 text-xs"
+            />
+            {hasDateFilter && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setDateFrom("");
+                  setDateTo("");
+                }}
+                className="h-8 gap-1 text-xs"
+              >
+                <X className="size-3.5" /> Limpar
+              </Button>
+            )}
           </div>
 
-          <div className="mt-3 space-y-2">
-            {sortedCreatives.map((creative) => (
-              <CreativeRow
-                key={creative.id}
-                creative={creative}
-                revalidateTarget={revalidateTarget}
-                startInEditMode={creative.id === justCreatedId}
-                onPatch={(patch) => patchCreative(creative.id, patch)}
-                onDelete={() => handleDeleteCreative(creative.id)}
-              />
-            ))}
-          </div>
+          {visibleCreatives.length === 0 ? (
+            <p className="mt-6 text-center text-sm text-muted-foreground">
+              Nenhum criativo com data de teste nesse período.
+            </p>
+          ) : (
+            <div className="mt-3 space-y-2">
+              {visibleCreatives.map((creative) => (
+                <CreativeRow
+                  key={creative.id}
+                  creative={creative}
+                  revalidateTarget={revalidateTarget}
+                  onPatch={(patch) => patchCreative(creative.id, patch)}
+                  onDelete={() => handleDeleteCreative(creative.id)}
+                />
+              ))}
+            </div>
+          )}
         </>
       )}
     </div>
+  );
+}
+
+function NewCreativeDialog({
+  open,
+  onOpenChange,
+  defaultTitle,
+  onCreate,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  defaultTitle: string;
+  onCreate: (input: NewCreativeInput) => Promise<void>;
+}) {
+  const [title, setTitle] = useState(defaultTitle);
+  const [link, setLink] = useState("");
+  const [testDate, setTestDate] = useState(todayKey());
+  const [validated, setValidated] = useState(false);
+  const [sales, setSales] = useState("0");
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Sempre que o popup abre, começa do zero — inclusive o nome sugerido, que
+  // muda conforme quantos criativos o produto já tem.
+  useEffect(() => {
+    if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reseta o formulário ao reabrir, não sincroniza com nada externo
+      setTitle(defaultTitle);
+      setLink("");
+      setTestDate(todayKey());
+      setValidated(false);
+      setSales("0");
+    }
+  }, [open, defaultTitle]);
+
+  function handleCreate() {
+    setIsSaving(true);
+    onCreate({
+      title: title.trim() || defaultTitle,
+      link: link.trim(),
+      validated,
+      sales: sales === "" ? 0 : Number.parseInt(sales, 10),
+      testDate: testDate || null,
+    }).finally(() => setIsSaving(false));
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Sparkles className="size-4 text-primary" />
+            Novo criativo
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Nome do criativo</label>
+            <Input
+              autoFocus
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Ex: Reels — gancho novo"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Link do criativo</label>
+            <div className="relative">
+              <Link2 className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={link}
+                onChange={(e) => setLink(e.target.value)}
+                placeholder="https://..."
+                className="pl-8"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Data de teste</label>
+              <Input type="date" value={testDate} onChange={(e) => setTestDate(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Vendas iniciais</label>
+              <Input
+                type="text"
+                inputMode="numeric"
+                value={sales}
+                onChange={(e) => setSales(e.target.value.replace(/[^0-9]/g, ""))}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Status</label>
+            <ValidatedSelect validated={validated} onChange={setValidated} />
+          </div>
+        </div>
+
+        <div className="mt-2 flex justify-end gap-2">
+          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={isSaving}>
+            Cancelar
+          </Button>
+          <Button type="button" onClick={handleCreate} disabled={isSaving} className="gap-1.5">
+            {isSaving ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
+            Criar criativo
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -467,6 +675,15 @@ function SalesField({
         title="Número de vendas"
       />
       <span className="text-xs text-muted-foreground">venda{value === "1" ? "" : "s"}</span>
+    </div>
+  );
+}
+
+function TestDateField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return (
+    <div className="flex h-9 shrink-0 items-center gap-1.5" title="Data de teste">
+      <CalendarDays className="size-3.5 shrink-0 text-muted-foreground" />
+      <Input type="date" value={value} onChange={(e) => onChange(e.target.value)} className="h-9 w-36 text-xs" />
     </div>
   );
 }
@@ -510,23 +727,22 @@ function ValidatedSelect({
 function CreativeRow({
   creative,
   revalidateTarget,
-  startInEditMode,
   onPatch,
   onDelete,
 }: {
   creative: MenteeProductCreative;
   revalidateTarget: string;
-  startInEditMode: boolean;
   onPatch: (patch: Partial<MenteeProductCreative>) => void;
   onDelete: () => void;
 }) {
-  const [isEditing, setIsEditing] = useState(startInEditMode);
+  const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(creative.title);
   const [link, setLink] = useState(creative.link);
   const [sales, setSales] = useState(String(creative.sales));
+  const [testDate, setTestDate] = useState(creative.test_date ?? "");
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  function scheduleSave(patch: { title?: string; link?: string; sales?: number }) {
+  function scheduleSave(patch: { title?: string; link?: string; sales?: number; test_date?: string | null }) {
     onPatch(patch);
     if (saveTimeout.current) clearTimeout(saveTimeout.current);
     saveTimeout.current = setTimeout(() => {
@@ -554,6 +770,11 @@ function CreativeRow({
 
   function handleSalesKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Enter") e.currentTarget.blur();
+  }
+
+  function handleTestDateChange(value: string) {
+    setTestDate(value);
+    scheduleSave({ test_date: value || null });
   }
 
   function handleValidatedChange(nextValidated: boolean) {
@@ -600,6 +821,8 @@ function CreativeRow({
 
         <SalesField value={sales} onChange={handleSalesChange} onKeyDown={handleSalesKeyDown} />
 
+        <TestDateField value={testDate} onChange={handleTestDateChange} />
+
         <Button type="button" size="sm" onClick={handleSave} className="shrink-0 gap-1.5">
           <Check className="size-3.5" />
           Salvar
@@ -640,6 +863,8 @@ function CreativeRow({
       <ValidatedSelect validated={creative.validated} onChange={handleValidatedChange} />
 
       <SalesField value={sales} onChange={handleSalesChange} onKeyDown={handleSalesKeyDown} />
+
+      <TestDateField value={testDate} onChange={handleTestDateChange} />
 
       <Button
         type="button"
