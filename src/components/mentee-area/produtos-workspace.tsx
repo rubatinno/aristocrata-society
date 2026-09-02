@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createClient } from "@/lib/supabase/client";
 import {
   createCreative,
@@ -17,8 +18,7 @@ import type { MenteeProduct, MenteeProductCreative } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
-  BadgeCheck,
-  CircleDashed,
+  Check,
   ExternalLink,
   Link2,
   Loader2,
@@ -323,6 +323,15 @@ export function ProdutosWorkspace({
   );
 }
 
+type SortOption = "recent" | "sales" | "validated" | "name";
+
+const SORT_ITEMS: Record<SortOption, string> = {
+  recent: "Mais recente",
+  sales: "Mais vendas",
+  validated: "Validados primeiro",
+  name: "Nome (A-Z)",
+};
+
 function ProductFolder({
   product,
   creatives,
@@ -339,11 +348,16 @@ function ProductFolder({
   onBack: () => void;
 }) {
   const [isCreating, setIsCreating] = useState(false);
+  const [justCreatedId, setJustCreatedId] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<SortOption>("recent");
 
   function handleNewCreative() {
     setIsCreating(true);
     createCreative(product.id, menteeId, revalidateTarget)
-      .then((creative) => setCreatives((prev) => [...prev, creative]))
+      .then((creative) => {
+        setCreatives((prev) => [...prev, creative]);
+        setJustCreatedId(creative.id);
+      })
       .catch(() => toast.error("Não foi possível criar o criativo."))
       .finally(() => setIsCreating(false));
   }
@@ -356,6 +370,21 @@ function ProductFolder({
   function patchCreative(id: string, patch: Partial<MenteeProductCreative>) {
     setCreatives((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
   }
+
+  const sortedCreatives = useMemo(() => {
+    const list = [...creatives];
+    switch (sortBy) {
+      case "sales":
+        return list.sort((a, b) => b.sales - a.sales);
+      case "validated":
+        return list.sort((a, b) => Number(b.validated) - Number(a.validated));
+      case "name":
+        return list.sort((a, b) => a.title.localeCompare(b.title));
+      case "recent":
+      default:
+        return list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    }
+  }, [creatives, sortBy]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -382,33 +411,91 @@ function ProductFolder({
           </p>
         </div>
       ) : (
-        <div className="mt-6 space-y-2">
-          {creatives.map((creative) => (
-            <CreativeRow
-              key={creative.id}
-              creative={creative}
-              revalidateTarget={revalidateTarget}
-              onPatch={(patch) => patchCreative(creative.id, patch)}
-              onDelete={() => handleDeleteCreative(creative.id)}
-            />
-          ))}
-        </div>
+        <>
+          <div className="mt-4 flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Ordenar por</span>
+            <Select value={sortBy} onValueChange={(v) => v && setSortBy(v as SortOption)} items={SORT_ITEMS}>
+              <SelectTrigger className="h-8 w-44 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(SORT_ITEMS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="mt-3 space-y-2">
+            {sortedCreatives.map((creative) => (
+              <CreativeRow
+                key={creative.id}
+                creative={creative}
+                revalidateTarget={revalidateTarget}
+                startInEditMode={creative.id === justCreatedId}
+                onPatch={(patch) => patchCreative(creative.id, patch)}
+                onDelete={() => handleDeleteCreative(creative.id)}
+              />
+            ))}
+          </div>
+        </>
       )}
     </div>
+  );
+}
+
+const VALIDATED_ITEMS = { validado: "Validado", nao_validado: "Não validado" };
+
+function ValidatedSelect({
+  validated,
+  onChange,
+}: {
+  validated: boolean;
+  onChange: (next: boolean) => void;
+}) {
+  return (
+    <Select
+      value={validated ? "validado" : "nao_validado"}
+      onValueChange={(v) => v && onChange(v === "validado")}
+      items={VALIDATED_ITEMS}
+    >
+      <SelectTrigger
+        className={cn(
+          "h-9 w-40 shrink-0 text-xs font-medium",
+          validated
+            ? "border-success/40 bg-success/15 text-success"
+            : "border-border bg-muted/40 text-muted-foreground",
+        )}
+      >
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {Object.entries(VALIDATED_ITEMS).map(([value, label]) => (
+          <SelectItem key={value} value={value}>
+            {label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
 function CreativeRow({
   creative,
   revalidateTarget,
+  startInEditMode,
   onPatch,
   onDelete,
 }: {
   creative: MenteeProductCreative;
   revalidateTarget: string;
+  startInEditMode: boolean;
   onPatch: (patch: Partial<MenteeProductCreative>) => void;
   onDelete: () => void;
 }) {
+  const [isEditing, setIsEditing] = useState(startInEditMode);
   const [title, setTitle] = useState(creative.title);
   const [link, setLink] = useState(creative.link);
   const [sales, setSales] = useState(String(creative.sales));
@@ -444,8 +531,7 @@ function CreativeRow({
     if (e.key === "Enter") e.currentTarget.blur();
   }
 
-  function toggleValidated() {
-    const nextValidated = !creative.validated;
+  function handleValidatedChange(nextValidated: boolean) {
     onPatch({ validated: nextValidated });
     updateCreative(creative.id, { validated: nextValidated }, revalidateTarget).catch(() => {
       toast.error("Não foi possível atualizar o criativo.");
@@ -453,69 +539,112 @@ function CreativeRow({
     });
   }
 
+  // "Salvar" confirma na hora, sem esperar o debounce — evita que o campo
+  // pareça "não salvo" se a pessoa clica em Salvar logo após digitar.
+  function handleSave() {
+    if (saveTimeout.current) clearTimeout(saveTimeout.current);
+    const parsedSales = sales === "" ? 0 : Number.parseInt(sales, 10);
+    onPatch({ title, link, sales: parsedSales });
+    updateCreative(creative.id, { title, link, sales: parsedSales }, revalidateTarget).catch(() => {
+      toast.error("Não foi possível salvar o criativo.");
+    });
+    setIsEditing(false);
+  }
+
+  if (isEditing) {
+    return (
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-3">
+        <Input
+          value={title}
+          onChange={(e) => handleTitleChange(e.target.value)}
+          placeholder="Nome do criativo"
+          className="h-9 w-40 shrink-0"
+        />
+
+        <div className="relative min-w-48 flex-1">
+          <Link2 className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={link}
+            onChange={(e) => handleLinkChange(e.target.value)}
+            placeholder="Link do criativo"
+            className="h-9 pl-8"
+          />
+        </div>
+
+        <ValidatedSelect validated={creative.validated} onChange={handleValidatedChange} />
+
+        <div className="flex h-9 shrink-0 items-center gap-1.5">
+          <Input
+            type="text"
+            inputMode="numeric"
+            value={sales}
+            onChange={(e) => handleSalesChange(e.target.value)}
+            onKeyDown={handleSalesKeyDown}
+            className="h-9 w-16 text-center"
+          />
+          <span className="text-xs text-muted-foreground">venda{sales === "1" ? "" : "s"}</span>
+        </div>
+
+        <Button type="button" size="sm" onClick={handleSave} className="shrink-0 gap-1.5">
+          <Check className="size-3.5" />
+          Salvar
+        </Button>
+
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={onDelete}
+          className="ml-auto shrink-0 text-muted-foreground hover:text-destructive"
+          title="Remover criativo"
+        >
+          <Trash2 className="size-3.5" />
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-3">
-      <Input
-        value={title}
-        onChange={(e) => handleTitleChange(e.target.value)}
-        placeholder="Nome do criativo"
-        className="h-9 w-40 shrink-0"
-      />
-
-      <div className="relative min-w-48 flex-1">
-        <Link2 className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={link}
-          onChange={(e) => handleLinkChange(e.target.value)}
-          placeholder="Link do criativo"
-          className="h-9 pl-8"
-        />
-      </div>
-
-      {link.trim() && (
+      {link.trim() ? (
         <a
           href={link.trim()}
           target="_blank"
           rel="noreferrer"
-          title="Abrir link"
-          className="flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="flex min-w-0 flex-1 items-center gap-1.5 truncate text-sm font-medium text-primary hover:underline"
         >
-          <ExternalLink className="size-3.5" />
+          <ExternalLink className="size-3.5 shrink-0" />
+          <span className="truncate">{title || "Sem nome"}</span>
         </a>
+      ) : (
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-muted-foreground">
+          {title || "Sem nome"} · sem link
+        </span>
       )}
 
-      <button
-        type="button"
-        onClick={toggleValidated}
-        className={cn(
-          "flex h-9 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-colors",
-          creative.validated
-            ? "border-success/40 bg-success/15 text-success"
-            : "border-border bg-muted/40 text-muted-foreground hover:text-foreground",
-        )}
-      >
-        {creative.validated ? <BadgeCheck className="size-3.5" /> : <CircleDashed className="size-3.5" />}
-        {creative.validated ? "Validado" : "Não validado"}
-      </button>
+      <ValidatedSelect validated={creative.validated} onChange={handleValidatedChange} />
 
-      <div className="flex h-9 shrink-0 items-center gap-1.5">
-        <Input
-          type="text"
-          inputMode="numeric"
-          value={sales}
-          onChange={(e) => handleSalesChange(e.target.value)}
-          onKeyDown={handleSalesKeyDown}
-          className="h-9 w-16 text-center"
-        />
-        <span className="text-xs text-muted-foreground">venda{sales === "1" ? "" : "s"}</span>
-      </div>
+      <span className="shrink-0 text-xs text-muted-foreground">
+        {creative.sales} venda{creative.sales === 1 ? "" : "s"}
+      </span>
+
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        onClick={() => setIsEditing(true)}
+        className="shrink-0 text-muted-foreground hover:text-foreground"
+        title="Editar"
+      >
+        <Pencil className="size-3.5" />
+      </Button>
 
       <Button
         type="button"
         variant="ghost"
         size="icon-sm"
         onClick={onDelete}
-        className="ml-auto shrink-0 text-muted-foreground hover:text-destructive"
+        className="shrink-0 text-muted-foreground hover:text-destructive"
         title="Remover criativo"
       >
         <Trash2 className="size-3.5" />
