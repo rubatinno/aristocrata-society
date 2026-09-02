@@ -99,6 +99,24 @@ export async function updateMenteePlan(id: string, planId: string | null) {
   revalidatePath("/dashboard/mentorados");
 }
 
+/**
+ * Redefine a senha de login de um mentorado — usado quando ele esquece a
+ * senha e não tem como recuperar sozinho. Exige a service role porque é uma
+ * operação de auth administrativa, sem passar pelo fluxo normal de "esqueci
+ * minha senha" (que dependeria do mentorado ter acesso ao e-mail).
+ */
+export async function adminSetMenteePassword(userId: string, newPassword: string) {
+  await requireAdmin();
+
+  if (newPassword.length < 6) {
+    throw new Error("A senha precisa ter pelo menos 6 caracteres.");
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.updateUserById(userId, { password: newPassword });
+  if (error) throw new Error("Não foi possível alterar a senha.");
+}
+
 export interface InviteFormState {
   status: "idle" | "success" | "error";
   message?: string;

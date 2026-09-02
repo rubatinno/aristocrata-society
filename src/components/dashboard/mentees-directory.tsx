@@ -15,7 +15,7 @@ import {
   updateMenteeOverrides,
   type LinkFormState,
 } from "@/app/dashboard/mentorados/actions";
-import { updateMenteePlan } from "@/app/dashboard/aprovacoes/actions";
+import { adminSetMenteePassword, updateMenteePlan } from "@/app/dashboard/aprovacoes/actions";
 import { listMenteeNotes } from "@/app/agendar/anotacoes/actions";
 import { listMenteeGoals } from "@/app/agendar/progresso/actions";
 import { startViewAsMentee } from "@/app/agendar/mentee-actions";
@@ -30,6 +30,7 @@ import {
   CheckCircle2,
   Eye,
   ExternalLink,
+  KeyRound,
   Loader2,
   Maximize2,
   Minimize2,
@@ -203,6 +204,9 @@ function MenteeCard({
   const [editingGroupLink, setEditingGroupLink] = useState(false);
   const [groupLinkInput, setGroupLinkInput] = useState(mentee.group_link ?? "");
   const [isSavingGroupLink, startSavingGroupLink] = useTransition();
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [isSavingPassword, startSavingPassword] = useTransition();
 
   function handlePlanChange(value: string | null) {
     startChangingPlan(async () => {
@@ -316,6 +320,24 @@ function MenteeCard({
     void startViewAsMentee(mentee.user_id);
   }
 
+  function handleSetPassword() {
+    if (!mentee.user_id) return;
+    if (newPassword.length < 6) {
+      toast.error("A senha precisa ter pelo menos 6 caracteres.");
+      return;
+    }
+    startSavingPassword(async () => {
+      try {
+        await adminSetMenteePassword(mentee.user_id!, newPassword);
+        toast.success("Senha alterada. Avise o mentorado da nova senha.");
+        setPasswordOpen(false);
+        setNewPassword("");
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Não foi possível alterar a senha.");
+      }
+    });
+  }
+
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
       <div className="flex flex-wrap items-center gap-3">
@@ -388,6 +410,20 @@ function MenteeCard({
           {loadingNotes ? <Loader2 className="size-3.5 animate-spin" /> : <NotebookPen className="size-3.5" />}
           Anotações
         </Button>
+        {isAdmin && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setPasswordOpen(true)}
+            disabled={!mentee.user_id}
+            title={!mentee.user_id ? "Mentorado ainda não criou a conta" : undefined}
+            className="gap-1.5"
+          >
+            <KeyRound className="size-3.5" />
+            Redefinir senha
+          </Button>
+        )}
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
@@ -615,6 +651,56 @@ function MenteeCard({
                 />
               </div>
             )}
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {mentee.user_id && (
+        <Dialog
+          open={passwordOpen}
+          onOpenChange={(open) => {
+            setPasswordOpen(open);
+            if (!open) setNewPassword("");
+          }}
+        >
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Redefinir senha · {mentee.full_name || mentee.email}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Define uma senha nova pra esse mentorado entrar. Avise ele por fora (WhatsApp, etc) —
+                isso não envia e-mail.
+              </p>
+              <Input
+                type="text"
+                autoFocus
+                placeholder="Nova senha (mín. 6 caracteres)"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleSetPassword();
+                  }
+                }}
+              />
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setPasswordOpen(false)}
+                  disabled={isSavingPassword}
+                >
+                  Cancelar
+                </Button>
+                <Button type="button" size="sm" onClick={handleSetPassword} disabled={isSavingPassword} className="gap-1.5">
+                  {isSavingPassword && <Loader2 className="size-3.5 animate-spin" />}
+                  Salvar nova senha
+                </Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       )}
