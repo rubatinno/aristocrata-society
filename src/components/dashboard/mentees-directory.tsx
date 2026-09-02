@@ -18,9 +18,11 @@ import {
 import { adminSetMenteePassword, updateMenteePlan } from "@/app/dashboard/aprovacoes/actions";
 import { listMenteeNotes } from "@/app/agendar/anotacoes/actions";
 import { listMenteeGoals } from "@/app/agendar/progresso/actions";
+import { getMenteeSummary } from "@/app/dashboard/mentorados/summary-actions";
 import { startViewAsMentee } from "@/app/agendar/mentee-actions";
 import { NotesWorkspace } from "@/components/mentee-area/notes-workspace";
 import { GoalsWorkspace } from "@/components/mentee-area/goals-workspace";
+import { SummaryWorkspace } from "@/components/mentee-area/summary-workspace";
 import type { ApprovedMentee, MenteeGoal, MenteeLink, MenteeNote, Plan } from "@/lib/types";
 import { formatFullDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -30,6 +32,7 @@ import {
   CheckCircle2,
   Eye,
   ExternalLink,
+  FileText,
   KeyRound,
   Loader2,
   Maximize2,
@@ -191,6 +194,9 @@ function MenteeCard({
   const [goalsOpen, setGoalsOpen] = useState(false);
   const [goals, setGoals] = useState<MenteeGoal[] | null>(null);
   const [loadingGoals, setLoadingGoals] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [summaryContent, setSummaryContent] = useState<string | null>(null);
+  const [loadingSummary, setLoadingSummary] = useState(false);
   const [editingLimits, setEditingLimits] = useState(false);
   const [totalCallsInput, setTotalCallsInput] = useState(mentee.total_calls_override?.toString() ?? "");
   const [startDateInput, setStartDateInput] = useState(mentee.starts_at);
@@ -313,6 +319,20 @@ function MenteeCard({
     }
   }
 
+  async function handleOpenSummary() {
+    if (!mentee.user_id) return;
+    setLoadingSummary(true);
+    try {
+      const data = await getMenteeSummary(mentee.user_id);
+      setSummaryContent(data?.content ?? "");
+      setSummaryOpen(true);
+    } catch {
+      toast.error("Não foi possível carregar o resumo.");
+    } finally {
+      setLoadingSummary(false);
+    }
+  }
+
   function handleViewAsMentee() {
     if (!mentee.user_id) return;
     // startViewAsMentee redireciona (throw interno do Next.js) — sem
@@ -409,6 +429,18 @@ function MenteeCard({
         >
           {loadingNotes ? <Loader2 className="size-3.5 animate-spin" /> : <NotebookPen className="size-3.5" />}
           Anotações
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleOpenSummary}
+          disabled={!mentee.user_id || loadingSummary}
+          title={!mentee.user_id ? "Mentorado ainda não criou a conta" : "Só mentores e admin veem essa aba"}
+          className="gap-1.5"
+        >
+          {loadingSummary ? <Loader2 className="size-3.5 animate-spin" /> : <FileText className="size-3.5" />}
+          Resumo
         </Button>
         {isAdmin && (
           <Button
@@ -650,6 +682,23 @@ function MenteeCard({
                   canManage
                 />
               </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {mentee.user_id && (
+        <Dialog open={summaryOpen} onOpenChange={setSummaryOpen}>
+          <DialogContent className="flex h-[70vh] max-w-3xl flex-col gap-0 p-0 sm:max-w-3xl" showCloseButton>
+            <DialogHeader className="shrink-0 border-b border-border p-4 pr-16">
+              <DialogTitle>Resumo · {mentee.full_name || mentee.email}</DialogTitle>
+            </DialogHeader>
+            {summaryContent !== null && (
+              <SummaryWorkspace
+                initialContent={summaryContent}
+                menteeId={mentee.user_id}
+                revalidateTarget="/dashboard/mentorados"
+              />
             )}
           </DialogContent>
         </Dialog>

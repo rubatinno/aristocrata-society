@@ -132,6 +132,14 @@ export type MenteeNote = {
   updated_at: string;
 };
 
+/** Resumo da trajetória do mentorado — só mentor/admin enxergam (RLS bloqueia
+ * o próprio mentorado, ver migration 0028). Um documento só por mentorado. */
+export type MenteeSummary = {
+  mentee_id: string;
+  content: string;
+  updated_at: string;
+};
+
 export type GoalKind = "tarefa" | "meta";
 
 export type MenteeGoal = {
@@ -289,6 +297,12 @@ export type Database = {
           kind?: GoalKind;
         };
         Update: Partial<MenteeGoal>;
+        Relationships: [];
+      };
+      mentee_summaries: {
+        Row: MenteeSummary;
+        Insert: Omit<MenteeSummary, "updated_at"> & { updated_at?: string };
+        Update: Partial<MenteeSummary>;
         Relationships: [];
       };
       mentor_payments: {
