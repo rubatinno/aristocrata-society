@@ -31,12 +31,12 @@ export async function listProductCreatives(menteeId: string) {
   return (data as MenteeProductCreative[]) ?? [];
 }
 
-export async function createProduct(menteeId: string, revalidateTarget: string) {
+export async function createProduct(menteeId: string, name: string, revalidateTarget: string) {
   const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("mentee_products")
-    .insert({ mentee_id: menteeId, name: "Novo produto" })
+    .insert({ mentee_id: menteeId, name: name.trim() || "Novo produto" })
     .select("*")
     .single();
 

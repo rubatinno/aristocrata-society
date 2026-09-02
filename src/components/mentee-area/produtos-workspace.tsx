@@ -58,6 +58,8 @@ export function ProdutosWorkspace({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [isAddingProduct, setIsAddingProduct] = useState(false);
+  const [draftName, setDraftName] = useState("");
   const [isCreatingProduct, setIsCreatingProduct] = useState(false);
 
   useEffect(() => {
@@ -122,17 +124,24 @@ export function ProdutosWorkspace({
     };
   }, [menteeId]);
 
-  function handleNewProduct() {
+  function commitNewProduct() {
+    const name = draftName.trim();
+    if (!name) return;
+    setIsAddingProduct(false);
     setIsCreatingProduct(true);
-    createProduct(menteeId, revalidateTarget)
+    createProduct(menteeId, name, revalidateTarget)
       .then((product) => {
         setProducts((prev) => [...prev, product]);
         setSelectedId(product.id);
-        setRenamingId(product.id);
-        setRenameValue(product.name);
+        setDraftName("");
       })
       .catch(() => toast.error("Não foi possível criar o produto."))
       .finally(() => setIsCreatingProduct(false));
+  }
+
+  function cancelNewProduct() {
+    setIsAddingProduct(false);
+    setDraftName("");
   }
 
   function startRename(product: MenteeProduct) {
@@ -188,10 +197,44 @@ export function ProdutosWorkspace({
                 Sua central pra organizar produtos e criativos testados.
               </p>
             </div>
-            <Button type="button" onClick={handleNewProduct} disabled={isCreatingProduct} className="gap-1.5">
-              {isCreatingProduct ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
-              Novo produto
-            </Button>
+            {isAddingProduct ? (
+              <div className="flex shrink-0 items-center gap-2">
+                <Input
+                  autoFocus
+                  value={draftName}
+                  onChange={(e) => setDraftName(e.target.value)}
+                  placeholder="Nome do produto"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      commitNewProduct();
+                    } else if (e.key === "Escape") {
+                      e.preventDefault();
+                      cancelNewProduct();
+                    }
+                  }}
+                  className="h-9 w-48"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={commitNewProduct}
+                  disabled={isCreatingProduct || !draftName.trim()}
+                  className="gap-1.5"
+                >
+                  {isCreatingProduct ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
+                  Criar
+                </Button>
+                <Button type="button" variant="ghost" size="sm" onClick={cancelNewProduct}>
+                  Cancelar
+                </Button>
+              </div>
+            ) : (
+              <Button type="button" onClick={() => setIsAddingProduct(true)} className="shrink-0 gap-1.5">
+                <Plus className="size-3.5" />
+                Novo produto
+              </Button>
+            )}
           </div>
 
           {products.length === 0 ? (
