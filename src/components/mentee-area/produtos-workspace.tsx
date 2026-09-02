@@ -446,6 +446,31 @@ function ProductFolder({
   );
 }
 
+function SalesField({
+  value,
+  onChange,
+  onKeyDown,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  onKeyDown: (e: KeyboardEvent<HTMLInputElement>) => void;
+}) {
+  return (
+    <div className="flex h-9 shrink-0 items-center gap-1.5">
+      <Input
+        type="text"
+        inputMode="numeric"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={onKeyDown}
+        className="h-9 w-16 text-center"
+        title="Número de vendas"
+      />
+      <span className="text-xs text-muted-foreground">venda{value === "1" ? "" : "s"}</span>
+    </div>
+  );
+}
+
 const VALIDATED_ITEMS = { validado: "Validado", nao_validado: "Não validado" };
 
 function ValidatedSelect({
@@ -573,17 +598,7 @@ function CreativeRow({
 
         <ValidatedSelect validated={creative.validated} onChange={handleValidatedChange} />
 
-        <div className="flex h-9 shrink-0 items-center gap-1.5">
-          <Input
-            type="text"
-            inputMode="numeric"
-            value={sales}
-            onChange={(e) => handleSalesChange(e.target.value)}
-            onKeyDown={handleSalesKeyDown}
-            className="h-9 w-16 text-center"
-          />
-          <span className="text-xs text-muted-foreground">venda{sales === "1" ? "" : "s"}</span>
-        </div>
+        <SalesField value={sales} onChange={handleSalesChange} onKeyDown={handleSalesKeyDown} />
 
         <Button type="button" size="sm" onClick={handleSave} className="shrink-0 gap-1.5">
           <Check className="size-3.5" />
@@ -606,27 +621,25 @@ function CreativeRow({
 
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-3">
+      <span className="min-w-0 flex-1 truncate text-sm font-medium">{title || "Sem nome"}</span>
+
       {link.trim() ? (
         <a
           href={link.trim()}
           target="_blank"
           rel="noreferrer"
-          className="flex min-w-0 flex-1 items-center gap-1.5 truncate text-sm font-medium text-primary hover:underline"
+          className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-3 text-xs font-medium text-primary transition-colors hover:bg-primary/15"
         >
-          <ExternalLink className="size-3.5 shrink-0" />
-          <span className="truncate">{title || "Sem nome"}</span>
+          <ExternalLink className="size-3.5" />
+          Abrir Criativo
         </a>
       ) : (
-        <span className="min-w-0 flex-1 truncate text-sm font-medium text-muted-foreground">
-          {title || "Sem nome"} · sem link
-        </span>
+        <span className="shrink-0 text-xs text-muted-foreground">Sem link</span>
       )}
 
       <ValidatedSelect validated={creative.validated} onChange={handleValidatedChange} />
 
-      <span className="shrink-0 text-xs text-muted-foreground">
-        {creative.sales} venda{creative.sales === 1 ? "" : "s"}
-      </span>
+      <SalesField value={sales} onChange={handleSalesChange} onKeyDown={handleSalesKeyDown} />
 
       <Button
         type="button"
@@ -634,7 +647,7 @@ function CreativeRow({
         size="icon-sm"
         onClick={() => setIsEditing(true)}
         className="shrink-0 text-muted-foreground hover:text-foreground"
-        title="Editar"
+        title="Editar nome e link"
       >
         <Pencil className="size-3.5" />
       </Button>
