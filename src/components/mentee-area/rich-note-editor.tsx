@@ -21,7 +21,6 @@ import TaskItem from "@tiptap/extension-task-item";
 import { FontSize } from "@/components/mentee-area/font-size-extension";
 import { ResizableImage } from "@/components/mentee-area/resizable-image";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Bold,
   Image as ImageIcon,
@@ -34,7 +33,6 @@ import {
   Plus,
   Redo2,
   Undo2,
-  ZoomIn,
 } from "lucide-react";
 import { uploadNoteImage } from "@/app/agendar/anotacoes/actions";
 import { cn } from "@/lib/utils";
@@ -42,10 +40,6 @@ import { cn } from "@/lib/utils";
 const DEFAULT_FONT_SIZE = 16;
 const MIN_FONT_SIZE = 10;
 const MAX_FONT_SIZE = 48;
-
-const ZOOM_LEVELS = [50, 75, 90, 100, 110, 125, 150, 175, 200];
-const DEFAULT_ZOOM = 100;
-const ZOOM_ITEMS = Object.fromEntries(ZOOM_LEVELS.map((z) => [String(z), `${z}%`]));
 
 function isImageFile(file: File) {
   return file.type.startsWith("image/");
@@ -61,7 +55,6 @@ export function RichNoteEditor({
   menteeId: string;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [zoom, setZoom] = useState(DEFAULT_ZOOM);
   const [linkPopoverOpen, setLinkPopoverOpen] = useState(false);
   const [linkValue, setLinkValue] = useState("");
 
@@ -100,7 +93,14 @@ export function RichNoteEditor({
     content,
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
     editorProps: {
-      attributes: { class: "min-h-[300px] px-6 py-5" },
+      // >= 16px é obrigatório aqui: abaixo disso, o celular (iOS/Android)
+      // força um zoom automático assim que o campo ganha foco pra digitar.
+      // O resto é só pra parecer uma folha, tipo Google Docs — página
+      // clara sobre um fundo neutro, com bastante respiro.
+      attributes: {
+        class:
+          "min-h-[60vh] rounded-xl bg-card px-8 py-10 text-base leading-relaxed shadow-sm outline-none sm:px-16",
+      },
       handleDrop: (view, event, _slice, moved) => {
         if (moved) return false;
         const files = Array.from(event.dataTransfer?.files ?? []).filter(isImageFile);
@@ -284,26 +284,6 @@ export function RichNoteEditor({
         <ToolbarButton onClick={() => editor.chain().focus().redo().run()}>
           <Redo2 className="size-4" />
         </ToolbarButton>
-
-        <div className="ml-auto flex items-center gap-1.5">
-          <ZoomIn className="size-4 text-muted-foreground" />
-          <Select
-            value={String(zoom)}
-            onValueChange={(value) => value && setZoom(Number.parseInt(value, 10))}
-            items={ZOOM_ITEMS}
-          >
-            <SelectTrigger className="h-8 w-[84px] text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {ZOOM_LEVELS.map((level) => (
-                <SelectItem key={level} value={String(level)}>
-                  {level}%
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
       </div>
       {linkPopoverOpen && (
         <div className="flex items-center gap-2 border-b border-border bg-muted/30 px-3 py-2">
@@ -325,8 +305,11 @@ export function RichNoteEditor({
           </Button>
         </div>
       )}
-      <div className="min-h-0 flex-1 overflow-y-auto" onMouseDownCapture={handleEditorMouseDownCapture}>
-        <EditorContent editor={editor} className="text-sm" style={{ zoom: `${zoom}%` }} />
+      <div
+        className="min-h-0 flex-1 overflow-y-auto bg-muted/20"
+        onMouseDownCapture={handleEditorMouseDownCapture}
+      >
+        <EditorContent editor={editor} className="mx-auto max-w-3xl px-4 py-10" />
       </div>
     </div>
   );

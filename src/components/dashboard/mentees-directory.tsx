@@ -692,12 +692,19 @@ function MenteeCard({
               <Button
                 type="button"
                 variant="ghost"
-                size="icon-sm"
+                size="sm"
                 onClick={() => setNotesMaximized((prev) => !prev)}
-                className="text-muted-foreground hover:text-foreground"
-                title={notesMaximized ? "Minimizar" : "Maximizar"}
+                className="gap-1.5 text-muted-foreground hover:text-foreground"
               >
-                {notesMaximized ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+                {notesMaximized ? (
+                  <>
+                    <Minimize2 className="size-3.5" /> Sair da tela cheia
+                  </>
+                ) : (
+                  <>
+                    <Maximize2 className="size-3.5" /> Tela cheia
+                  </>
+                )}
               </Button>
             </DialogHeader>
             {notes && (
