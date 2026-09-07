@@ -43,10 +43,15 @@ export function MentorPicker({
   const router = useRouter();
   const refreshTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Escuta mudanças de disponibilidade/agendamentos em tempo real — quando um
-  // mentor abre um novo horário (ou alguém acabou de preencher um), a página
-  // se atualiza sozinha, sem o mentorado precisar recarregar.
+  // Escuta mudanças de disponibilidade/agendamentos em tempo real — quando o
+  // mentor selecionado abre um novo horário (ou alguém acabou de preencher
+  // um), a página se atualiza sozinha, sem o mentorado precisar recarregar.
+  // Filtrado só pelo mentor em exibição: sem isso, QUALQUER agendamento de
+  // QUALQUER mentor na plataforma inteira recarregava a página de todo
+  // mundo que estivesse navegando em /agendar naquele momento.
   useEffect(() => {
+    if (!selectedId) return;
+
     const supabase = createClient();
 
     function scheduleRefresh() {
@@ -55,16 +60,24 @@ export function MentorPicker({
     }
 
     const channel = supabase
-      .channel("agendar-live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "availability_dates" }, scheduleRefresh)
-      .on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, scheduleRefresh)
+      .channel(`agendar-live-${selectedId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "availability_dates", filter: `mentor_id=eq.${selectedId}` },
+        scheduleRefresh,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "bookings", filter: `mentor_id=eq.${selectedId}` },
+        scheduleRefresh,
+      )
       .subscribe();
 
     return () => {
       if (refreshTimeout.current) clearTimeout(refreshTimeout.current);
       supabase.removeChannel(channel);
     };
-  }, [router]);
+  }, [router, selectedId]);
 
   const selected = useMemo(
     () => mentors.find((m) => m.profile.id === selectedId) ?? mentors[0],

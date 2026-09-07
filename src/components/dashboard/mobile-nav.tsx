@@ -16,8 +16,12 @@ const links = [
 export function DashboardMobileNav() {
   const pathname = usePathname();
 
+  // Sem backdrop-blur de propósito: num elemento fixed presente em toda
+  // página mobile, o navegador recalcula o desfoque a cada frame de scroll
+  // — trava a rolagem em aparelhos mais fracos. bg-card sólido já cobre o
+  // conteúdo por trás sem esse custo.
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-card/95 backdrop-blur supports-backdrop-filter:bg-card/80 lg:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-card lg:hidden">
       {links.map((link) => {
         const isActive =
           link.href === "/dashboard" ? pathname === link.href : pathname.startsWith(link.href);
