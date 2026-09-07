@@ -99,7 +99,7 @@ export function RichNoteEditor({
       // clara sobre um fundo neutro, com bastante respiro.
       attributes: {
         class:
-          "min-h-[60vh] rounded-xl bg-card px-8 py-10 text-base leading-relaxed shadow-sm outline-none sm:px-16",
+          "min-h-[60vh] rounded-xl bg-card px-8 py-10 text-lg leading-relaxed shadow-sm outline-none sm:px-16",
       },
       handleDrop: (view, event, _slice, moved) => {
         if (moved) return false;

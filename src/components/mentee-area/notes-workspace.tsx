@@ -25,11 +25,15 @@ export function NotesWorkspace({
   menteeId,
   revalidateTarget,
   className,
+  focusMode = false,
 }: {
   initialNotes: MenteeNote[];
   menteeId: string;
   revalidateTarget: string;
   className?: string;
+  /** Modo tela cheia: esconde a lista de anotações e mostra só o título e
+   * o conteúdo da que está aberta, sem distração. */
+  focusMode?: boolean;
 }) {
   const router = useRouter();
   const [notes, setNotes] = useState(initialNotes);
@@ -171,45 +175,55 @@ export function NotesWorkspace({
 
   return (
     <div className={cn("flex min-h-0 flex-col lg:flex-row", className)}>
-      <div className="flex w-full shrink-0 flex-col border-b border-border lg:h-full lg:w-64 lg:border-r lg:border-b-0">
-        <div className="flex items-center justify-between px-4 py-4">
-          <h2 className="text-sm font-semibold">Anotações</h2>
-          <Button size="sm" onClick={handleNewNote} disabled={isPending} className="gap-1.5">
-            <Plus className="size-3.5" /> Nova
-          </Button>
+      {!focusMode && (
+        <div className="flex w-full shrink-0 flex-col border-b border-border lg:h-full lg:w-64 lg:border-r lg:border-b-0">
+          <div className="flex items-center justify-between px-4 py-4">
+            <h2 className="text-sm font-semibold">Anotações</h2>
+            <Button size="sm" onClick={handleNewNote} disabled={isPending} className="gap-1.5">
+              <Plus className="size-3.5" /> Nova
+            </Button>
+          </div>
+          <div className="flex-1 space-y-1 overflow-y-auto px-2 pb-4">
+            {notes.length === 0 && (
+              <p className="px-2 py-6 text-center text-xs text-muted-foreground">
+                Nenhuma anotação ainda. Crie a primeira.
+              </p>
+            )}
+            {notes.map((note) => (
+              <button
+                key={note.id}
+                type="button"
+                onClick={() => setSelectedId(note.id)}
+                className={cn(
+                  "flex w-full flex-col gap-0.5 rounded-lg px-3 py-2 text-left transition-colors",
+                  selectedId === note.id ? "bg-accent text-accent-foreground" : "hover:bg-accent/50",
+                )}
+              >
+                <span className="truncate text-sm font-medium">{note.title || "Sem título"}</span>
+                <span className="truncate text-xs text-muted-foreground">{formatUpdated(note.updated_at)}</span>
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="flex-1 space-y-1 overflow-y-auto px-2 pb-4">
-          {notes.length === 0 && (
-            <p className="px-2 py-6 text-center text-xs text-muted-foreground">
-              Nenhuma anotação ainda. Crie a primeira.
-            </p>
-          )}
-          {notes.map((note) => (
-            <button
-              key={note.id}
-              type="button"
-              onClick={() => setSelectedId(note.id)}
-              className={cn(
-                "flex w-full flex-col gap-0.5 rounded-lg px-3 py-2 text-left transition-colors",
-                selectedId === note.id ? "bg-accent text-accent-foreground" : "hover:bg-accent/50",
-              )}
-            >
-              <span className="truncate text-sm font-medium">{note.title || "Sem título"}</span>
-              <span className="truncate text-xs text-muted-foreground">{formatUpdated(note.updated_at)}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+      )}
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {selected ? (
           <>
-            <div className="flex items-center justify-between gap-3 border-b border-border px-6 py-4">
+            <div
+              className={cn(
+                "flex items-center justify-between gap-3 border-b border-border px-6 py-4",
+                focusMode && "mx-auto w-full max-w-3xl",
+              )}
+            >
               <input
                 value={title}
                 onChange={(e) => handleTitleChange(e.target.value)}
                 placeholder="Título"
-                className="w-full bg-transparent font-heading text-lg font-semibold outline-none placeholder:text-muted-foreground"
+                className={cn(
+                  "w-full bg-transparent font-heading font-semibold outline-none placeholder:text-muted-foreground",
+                  focusMode ? "text-2xl" : "text-lg",
+                )}
               />
               <div className="flex shrink-0 items-center gap-3">
                 {isSaving && (
@@ -234,8 +248,15 @@ export function NotesWorkspace({
             <NotebookPen className="size-8 text-muted-foreground" />
             <p className="text-sm font-medium">Nenhuma anotação selecionada</p>
             <p className="max-w-xs text-sm text-muted-foreground">
-              Crie uma nova anotação ou escolha uma na lista ao lado.
+              {focusMode
+                ? "Crie uma nova anotação pra começar."
+                : "Crie uma nova anotação ou escolha uma na lista ao lado."}
             </p>
+            {focusMode && (
+              <Button size="sm" onClick={handleNewNote} disabled={isPending} className="gap-1.5">
+                <Plus className="size-3.5" /> Nova anotação
+              </Button>
+            )}
           </div>
         )}
       </div>

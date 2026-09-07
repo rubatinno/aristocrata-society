@@ -713,6 +713,7 @@ function MenteeCard({
                 menteeId={mentee.user_id}
                 revalidateTarget="/dashboard/mentorados"
                 className="flex-1"
+                focusMode={notesMaximized}
               />
             )}
           </DialogContent>
