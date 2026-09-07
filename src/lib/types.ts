@@ -63,6 +63,17 @@ export type MentorPayment = {
   created_at: string;
 };
 
+/** Chamada em grupo no Discord — fora do sistema de agendamento 1:1, mas
+ * paga no mesmo valor por chamada, então conta junto no Controle. */
+export type MentorDiscordCall = {
+  id: string;
+  mentor_id: string;
+  call_date: string; // yyyy-MM-dd
+  notes: string | null;
+  added_by: string | null;
+  created_at: string;
+};
+
 export type AvailabilityRule = {
   id: string;
   mentor_id: string;
@@ -360,6 +371,12 @@ export type Database = {
         Row: MentorPayment;
         Insert: Omit<MentorPayment, "id" | "created_at"> & { id?: string; created_at?: string };
         Update: Partial<MentorPayment>;
+        Relationships: [];
+      };
+      mentor_discord_calls: {
+        Row: MentorDiscordCall;
+        Insert: Omit<MentorDiscordCall, "id" | "created_at"> & { id?: string; created_at?: string };
+        Update: Partial<MentorDiscordCall>;
         Relationships: [];
       };
       mentor_google_tokens: {

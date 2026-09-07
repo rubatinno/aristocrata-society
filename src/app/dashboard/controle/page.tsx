@@ -1,7 +1,7 @@
 import { ControleView, type MentorWithPayments } from "@/components/dashboard/controle-view";
 import { requireMentor } from "@/lib/session";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { Booking, MentorPayment, Profile } from "@/lib/types";
+import type { Booking, MentorDiscordCall, MentorPayment, Profile } from "@/lib/types";
 import { ShieldAlert } from "lucide-react";
 
 export default async function ControlePage() {
@@ -19,15 +19,18 @@ export default async function ControlePage() {
 
   const admin = createAdminClient();
 
-  const [{ data: mentors }, { data: payments }, { data: bookings }] = await Promise.all([
-    admin.from("profiles").select("*").order("full_name"),
-    admin.from("mentor_payments").select("*").order("paid_through", { ascending: false }),
-    admin.from("bookings").select("*").eq("status", "concluida"),
-  ]);
+  const [{ data: mentors }, { data: payments }, { data: bookings }, { data: discordCalls }] =
+    await Promise.all([
+      admin.from("profiles").select("*").order("full_name"),
+      admin.from("mentor_payments").select("*").order("paid_through", { ascending: false }),
+      admin.from("bookings").select("*").eq("status", "concluida"),
+      admin.from("mentor_discord_calls").select("*").order("call_date", { ascending: false }),
+    ]);
 
   const mentorList = (mentors as Profile[]) ?? [];
   const paymentList = (payments as MentorPayment[]) ?? [];
   const completedBookings = (bookings as Booking[]) ?? [];
+  const discordCallList = (discordCalls as MentorDiscordCall[]) ?? [];
 
   const paymentsByMentor = new Map<string, MentorPayment[]>();
   for (const payment of paymentList) {
@@ -36,22 +39,41 @@ export default async function ControlePage() {
     paymentsByMentor.set(payment.mentor_id, list);
   }
 
+  const discordCallsByMentor = new Map<string, MentorDiscordCall[]>();
+  for (const call of discordCallList) {
+    const list = discordCallsByMentor.get(call.mentor_id) ?? [];
+    list.push(call);
+    discordCallsByMentor.set(call.mentor_id, list);
+  }
+
   const mentorsWithPayments: MentorWithPayments[] = mentorList.map((mentor) => {
     const mentorPayments = paymentsByMentor.get(mentor.id) ?? [];
+    const mentorDiscordCalls = discordCallsByMentor.get(mentor.id) ?? [];
     // Já vem ordenado por paid_through desc — o primeiro é o pagamento mais recente.
     const lastPaidThrough = mentorPayments[0]?.paid_through ?? null;
 
-    const unpaidCalls = completedBookings.filter((b) => {
+    const unpaidIndividualCalls = completedBookings.filter((b) => {
       if (b.mentor_id !== mentor.id) return false;
       if (!lastPaidThrough) return true;
       return b.starts_at.slice(0, 10) > lastPaidThrough;
     }).length;
 
+    // Chamadas em grupo no Discord contam junto — mesmo valor por chamada,
+    // mesmo corte por data de pagamento.
+    const unpaidDiscordCalls = mentorDiscordCalls.filter((c) => {
+      if (!lastPaidThrough) return true;
+      return c.call_date > lastPaidThrough;
+    }).length;
+
+    const unpaidCalls = unpaidIndividualCalls + unpaidDiscordCalls;
     const amountOwed = mentor.rate_per_call ? unpaidCalls * mentor.rate_per_call : null;
 
     return {
       ...mentor,
       payments: mentorPayments,
+      discordCalls: mentorDiscordCalls,
+      unpaidIndividualCalls,
+      unpaidDiscordCalls,
       unpaidCalls,
       amountOwed,
       lastPaidThrough,
@@ -64,7 +86,7 @@ export default async function ControlePage() {
         <h1 className="text-2xl font-semibold tracking-tight">Controle</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Defina o valor por chamada de cada mentor e registre os pagamentos já feitos — o sistema
-          calcula sozinho quantas chamadas concluídas ainda não foram pagas.
+          calcula sozinho quantas chamadas concluídas (individuais + Discord) ainda não foram pagas.
         </p>
       </div>
 

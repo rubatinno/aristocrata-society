@@ -6,17 +6,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  addDiscordCall,
   addMentorPayment,
+  deleteDiscordCall,
   deleteMentorPayment,
   setMentorRate,
 } from "@/app/dashboard/controle/actions";
-import type { MentorPayment, Profile } from "@/lib/types";
+import type { MentorDiscordCall, MentorPayment, Profile } from "@/lib/types";
 import { formatFullDate } from "@/lib/format";
-import { ChevronDown, ChevronUp, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Loader2, MessageCircle, Pencil, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type MentorWithPayments = Profile & {
   payments: MentorPayment[];
+  discordCalls: MentorDiscordCall[];
+  unpaidIndividualCalls: number;
+  unpaidDiscordCalls: number;
   unpaidCalls: number;
   amountOwed: number | null;
   lastPaidThrough: string | null;
@@ -65,6 +70,15 @@ function MentorPaymentCard({ mentor }: { mentor: MentorWithPayments }) {
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [isRemoving, startRemoving] = useTransition();
 
+  const [showDiscordForm, setShowDiscordForm] = useState(false);
+  const [discordDateInput, setDiscordDateInput] = useState(todayKey());
+  const [discordNotesInput, setDiscordNotesInput] = useState("");
+  const [isSavingDiscordCall, startSavingDiscordCall] = useTransition();
+
+  const [showDiscordHistory, setShowDiscordHistory] = useState(false);
+  const [removingDiscordId, setRemovingDiscordId] = useState<string | null>(null);
+  const [isRemovingDiscord, startRemovingDiscord] = useTransition();
+
   function handleSaveRate() {
     const rate = rateInput.trim() === "" ? null : Number.parseFloat(rateInput);
     startSavingRate(async () => {
@@ -104,6 +118,33 @@ function MentorPaymentCard({ mentor }: { mentor: MentorWithPayments }) {
         toast.error(e instanceof Error ? e.message : "Não foi possível remover.");
       } finally {
         setRemovingId(null);
+      }
+    });
+  }
+
+  function handleAddDiscordCall() {
+    startSavingDiscordCall(async () => {
+      try {
+        await addDiscordCall(mentor.id, { callDate: discordDateInput, notes: discordNotesInput });
+        toast.success("Chamada do Discord registrada.");
+        setDiscordNotesInput("");
+        setDiscordDateInput(todayKey());
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Não foi possível registrar.");
+      }
+    });
+  }
+
+  function handleRemoveDiscordCall(id: string) {
+    setRemovingDiscordId(id);
+    startRemovingDiscord(async () => {
+      try {
+        await deleteDiscordCall(id);
+        toast.success("Chamada removida.");
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Não foi possível remover.");
+      } finally {
+        setRemovingDiscordId(null);
       }
     });
   }
@@ -153,8 +194,13 @@ function MentorPaymentCard({ mentor }: { mentor: MentorWithPayments }) {
       <div className="mt-3 flex flex-wrap items-center gap-4 border-t border-border pt-3 text-sm">
         <span className="text-muted-foreground">
           <span className="font-semibold text-foreground">{mentor.unpaidCalls}</span> chamada
-          {mentor.unpaidCalls === 1 ? "" : "s"} concluída{mentor.unpaidCalls === 1 ? "" : "s"} não paga
-          {mentor.unpaidCalls === 1 ? "" : "s"}
+          {mentor.unpaidCalls === 1 ? "" : "s"} não paga{mentor.unpaidCalls === 1 ? "" : "s"}
+          {mentor.unpaidCalls > 0 && (
+            <span className="text-xs">
+              {" "}
+              ({mentor.unpaidIndividualCalls} individua{mentor.unpaidIndividualCalls === 1 ? "l" : "is"} + {mentor.unpaidDiscordCalls} Discord)
+            </span>
+          )}
         </span>
         {mentor.amountOwed !== null ? (
           <span
@@ -174,6 +220,15 @@ function MentorPaymentCard({ mentor }: { mentor: MentorWithPayments }) {
         <Button type="button" size="sm" onClick={() => setShowPaymentForm((v) => !v)} className="gap-1.5">
           <Plus className="size-3.5" /> Registrar pagamento
         </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setShowDiscordForm((v) => !v)}
+          className="gap-1.5"
+        >
+          <MessageCircle className="size-3.5" /> Registrar chamada Discord
+        </Button>
         {mentor.payments.length > 0 && (
           <Button
             type="button"
@@ -183,10 +238,91 @@ function MentorPaymentCard({ mentor }: { mentor: MentorWithPayments }) {
             className="gap-1.5 text-muted-foreground"
           >
             {showHistory ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
-            Histórico ({mentor.payments.length})
+            Pagamentos ({mentor.payments.length})
+          </Button>
+        )}
+        {mentor.discordCalls.length > 0 && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowDiscordHistory((v) => !v)}
+            className="gap-1.5 text-muted-foreground"
+          >
+            {showDiscordHistory ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+            Chamadas Discord ({mentor.discordCalls.length})
           </Button>
         )}
       </div>
+
+      {showDiscordForm && (
+        <div className="mt-3 space-y-3 rounded-xl border border-border bg-muted/30 p-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Data da chamada</Label>
+              <Input
+                type="date"
+                value={discordDateInput}
+                onChange={(e) => setDiscordDateInput(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Observação (opcional)</Label>
+              <Input
+                placeholder="Ex: Chamada de terça"
+                value={discordNotesInput}
+                onChange={(e) => setDiscordNotesInput(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleAddDiscordCall}
+              disabled={isSavingDiscordCall}
+              className="gap-1.5"
+            >
+              {isSavingDiscordCall && <Loader2 className="size-3.5 animate-spin" />} Salvar chamada
+            </Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setShowDiscordForm(false)}>
+              Fechar
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {showDiscordHistory && mentor.discordCalls.length > 0 && (
+        <div className="mt-3 space-y-1.5 border-t border-border pt-3">
+          {mentor.discordCalls.map((call) => (
+            <div
+              key={call.id}
+              className="flex items-center gap-2 rounded-lg border border-border/60 px-3 py-2 text-xs"
+            >
+              <div className="min-w-0 flex-1">
+                <span className="font-medium text-foreground">
+                  {formatFullDate(new Date(`${call.call_date}T12:00:00Z`), "UTC")}
+                </span>
+                {call.notes ? <span className="text-muted-foreground"> · {call.notes}</span> : null}
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => handleRemoveDiscordCall(call.id)}
+                disabled={isRemovingDiscord && removingDiscordId === call.id}
+                className="shrink-0 text-muted-foreground hover:text-destructive"
+              >
+                {isRemovingDiscord && removingDiscordId === call.id ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="size-3.5" />
+                )}
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {showPaymentForm && (
         <div className="mt-3 space-y-3 rounded-xl border border-border bg-muted/30 p-3">
