@@ -49,16 +49,21 @@ export async function deleteMentorPayment(id: string) {
  * Chamada em grupo no Discord — fora do sistema de agendamento 1:1, mas
  * paga no mesmo valor por chamada, então conta junto no total do mentor.
  */
-export async function addDiscordCall(mentorId: string, input: { callDate: string; notes: string }) {
+export async function addDiscordCall(
+  mentorId: string,
+  input: { callDate: string; notes: string; quantity: number },
+) {
   const supabase = await requireAdmin();
   const user = await getTrustedUser(supabase);
 
   if (!input.callDate) throw new Error("Informe a data da chamada.");
+  if (!(input.quantity > 0)) throw new Error("Informe uma quantidade válida.");
 
   const { error } = await supabase.from("mentor_discord_calls").insert({
     mentor_id: mentorId,
     call_date: input.callDate,
     notes: input.notes.trim() || null,
+    quantity: input.quantity,
     added_by: user?.id ?? null,
   });
 

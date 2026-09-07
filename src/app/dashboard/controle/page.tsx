@@ -59,11 +59,12 @@ export default async function ControlePage() {
     }).length;
 
     // Chamadas em grupo no Discord contam junto — mesmo valor por chamada,
-    // mesmo corte por data de pagamento.
-    const unpaidDiscordCalls = mentorDiscordCalls.filter((c) => {
-      if (!lastPaidThrough) return true;
-      return c.call_date > lastPaidThrough;
-    }).length;
+    // mesmo corte por data de pagamento. Soma `quantity`, não a quantidade
+    // de linhas — uma linha pode representar várias chamadas de uma vez
+    // (backfill de um período que não foi marcado dia a dia).
+    const unpaidDiscordCalls = mentorDiscordCalls
+      .filter((c) => !lastPaidThrough || c.call_date > lastPaidThrough)
+      .reduce((sum, c) => sum + c.quantity, 0);
 
     const unpaidCalls = unpaidIndividualCalls + unpaidDiscordCalls;
     const amountOwed = mentor.rate_per_call ? unpaidCalls * mentor.rate_per_call : null;

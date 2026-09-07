@@ -73,6 +73,7 @@ function MentorPaymentCard({ mentor }: { mentor: MentorWithPayments }) {
   const [showDiscordForm, setShowDiscordForm] = useState(false);
   const [discordDateInput, setDiscordDateInput] = useState(todayKey());
   const [discordNotesInput, setDiscordNotesInput] = useState("");
+  const [discordQuantityInput, setDiscordQuantityInput] = useState("1");
   const [isSavingDiscordCall, startSavingDiscordCall] = useTransition();
 
   const [showDiscordHistory, setShowDiscordHistory] = useState(false);
@@ -123,12 +124,14 @@ function MentorPaymentCard({ mentor }: { mentor: MentorWithPayments }) {
   }
 
   function handleAddDiscordCall() {
+    const quantity = Number.parseInt(discordQuantityInput, 10) || 1;
     startSavingDiscordCall(async () => {
       try {
-        await addDiscordCall(mentor.id, { callDate: discordDateInput, notes: discordNotesInput });
-        toast.success("Chamada do Discord registrada.");
+        await addDiscordCall(mentor.id, { callDate: discordDateInput, notes: discordNotesInput, quantity });
+        toast.success(quantity === 1 ? "Chamada do Discord registrada." : `${quantity} chamadas do Discord registradas.`);
         setDiscordNotesInput("");
         setDiscordDateInput(todayKey());
+        setDiscordQuantityInput("1");
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Não foi possível registrar.");
       }
@@ -257,7 +260,7 @@ function MentorPaymentCard({ mentor }: { mentor: MentorWithPayments }) {
 
       {showDiscordForm && (
         <div className="mt-3 space-y-3 rounded-xl border border-border bg-muted/30 p-3">
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-3">
             <div className="space-y-1">
               <Label className="text-xs">Data da chamada</Label>
               <Input
@@ -265,6 +268,19 @@ function MentorPaymentCard({ mentor }: { mentor: MentorWithPayments }) {
                 value={discordDateInput}
                 onChange={(e) => setDiscordDateInput(e.target.value)}
               />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Quantidade (opcional)</Label>
+              <Input
+                type="text"
+                inputMode="numeric"
+                placeholder="1"
+                value={discordQuantityInput}
+                onChange={(e) => setDiscordQuantityInput(e.target.value.replace(/[^0-9]/g, ""))}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Deixe 1 pra chamada avulsa, ou coloque quantas ele fez se for lançar um período de uma vez.
+              </p>
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Observação (opcional)</Label>
@@ -303,6 +319,9 @@ function MentorPaymentCard({ mentor }: { mentor: MentorWithPayments }) {
                 <span className="font-medium text-foreground">
                   {formatFullDate(new Date(`${call.call_date}T12:00:00Z`), "UTC")}
                 </span>
+                {call.quantity > 1 ? (
+                  <span className="text-muted-foreground"> · {call.quantity} chamadas</span>
+                ) : null}
                 {call.notes ? <span className="text-muted-foreground"> · {call.notes}</span> : null}
               </div>
               <Button

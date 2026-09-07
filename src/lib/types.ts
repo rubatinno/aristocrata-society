@@ -70,6 +70,7 @@ export type MentorDiscordCall = {
   mentor_id: string;
   call_date: string; // yyyy-MM-dd
   notes: string | null;
+  quantity: number; // permite lançar várias chamadas de uma vez (backfill)
   added_by: string | null;
   created_at: string;
 };
@@ -375,7 +376,11 @@ export type Database = {
       };
       mentor_discord_calls: {
         Row: MentorDiscordCall;
-        Insert: Omit<MentorDiscordCall, "id" | "created_at"> & { id?: string; created_at?: string };
+        Insert: Omit<MentorDiscordCall, "id" | "created_at" | "quantity"> & {
+          id?: string;
+          created_at?: string;
+          quantity?: number;
+        };
         Update: Partial<MentorDiscordCall>;
         Relationships: [];
       };
