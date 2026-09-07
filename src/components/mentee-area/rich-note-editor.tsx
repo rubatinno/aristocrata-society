@@ -23,6 +23,8 @@ import { ResizableImage } from "@/components/mentee-area/resizable-image";
 import { Button } from "@/components/ui/button";
 import {
   Bold,
+  ChevronDown,
+  ChevronUp,
   Image as ImageIcon,
   Italic,
   Link as LinkIcon,
@@ -57,6 +59,7 @@ export function RichNoteEditor({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [linkPopoverOpen, setLinkPopoverOpen] = useState(false);
   const [linkValue, setLinkValue] = useState("");
+  const [toolbarCollapsed, setToolbarCollapsed] = useState(false);
 
   async function insertImageFile(file: File, view: EditorView, pos: number) {
     const formData = new FormData();
@@ -214,77 +217,86 @@ export function RichNoteEditor({
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-      <div className="flex flex-wrap items-center gap-1 border-b border-border px-3 py-2">
-        <div className="flex items-center gap-0.5 rounded-lg border border-border">
-          <button
-            type="button"
-            onClick={() => applyFontSize((currentFontSize ?? DEFAULT_FONT_SIZE) - 1)}
-            className="flex size-8 items-center justify-center rounded-l-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          >
-            <Minus className="size-3.5" />
-          </button>
-          <input
-            type="number"
-            value={currentFontSize ?? DEFAULT_FONT_SIZE}
-            onChange={(e) => applyFontSize(Number.parseInt(e.target.value, 10) || DEFAULT_FONT_SIZE)}
-            className="w-10 border-x border-border bg-transparent py-1.5 text-center text-sm outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-          />
-          <button
-            type="button"
-            onClick={() => applyFontSize((currentFontSize ?? DEFAULT_FONT_SIZE) + 1)}
-            className="flex size-8 items-center justify-center rounded-r-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          >
-            <Plus className="size-3.5" />
-          </button>
-        </div>
-
-        <div className="mx-1 h-4 w-px bg-border" />
-
-        <ToolbarButton active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()}>
-          <Bold className="size-4" />
-        </ToolbarButton>
-        <ToolbarButton active={editor.isActive("italic")} onClick={() => editor.chain().focus().toggleItalic().run()}>
-          <Italic className="size-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          active={editor.isActive("bulletList")}
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
+      <div className="flex items-center justify-end border-b border-border px-2 py-1">
+        <button
+          type="button"
+          onClick={() => setToolbarCollapsed((v) => !v)}
+          className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
-          <List className="size-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          active={editor.isActive("orderedList")}
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
-        >
-          <ListOrdered className="size-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          active={editor.isActive("taskList")}
-          onClick={() => editor.chain().focus().toggleTaskList().run()}
-        >
-          <ListTodo className="size-4" />
-        </ToolbarButton>
-        <ToolbarButton active={editor.isActive("link")} onClick={openLinkPopover}>
-          <LinkIcon className="size-4" />
-        </ToolbarButton>
-        <ToolbarButton onClick={() => fileInputRef.current?.click()}>
-          <ImageIcon className="size-4" />
-        </ToolbarButton>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleImagePick}
-        />
-        <div className="mx-1 h-4 w-px bg-border" />
-        <ToolbarButton onClick={() => editor.chain().focus().undo().run()}>
-          <Undo2 className="size-4" />
-        </ToolbarButton>
-        <ToolbarButton onClick={() => editor.chain().focus().redo().run()}>
-          <Redo2 className="size-4" />
-        </ToolbarButton>
+          {toolbarCollapsed ? <ChevronDown className="size-3.5" /> : <ChevronUp className="size-3.5" />}
+          {toolbarCollapsed ? "Mostrar formatação" : "Ocultar formatação"}
+        </button>
       </div>
+      {!toolbarCollapsed && (
+        <div className="flex flex-wrap items-center gap-1 border-b border-border px-3 py-2">
+          <div className="flex items-center gap-0.5 rounded-lg border border-border">
+            <button
+              type="button"
+              onClick={() => applyFontSize((currentFontSize ?? DEFAULT_FONT_SIZE) - 1)}
+              className="flex size-8 items-center justify-center rounded-l-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <Minus className="size-3.5" />
+            </button>
+            <input
+              type="number"
+              value={currentFontSize ?? DEFAULT_FONT_SIZE}
+              onChange={(e) => applyFontSize(Number.parseInt(e.target.value, 10) || DEFAULT_FONT_SIZE)}
+              className="w-10 border-x border-border bg-transparent py-1.5 text-center text-sm outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+            <button
+              type="button"
+              onClick={() => applyFontSize((currentFontSize ?? DEFAULT_FONT_SIZE) + 1)}
+              className="flex size-8 items-center justify-center rounded-r-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <Plus className="size-3.5" />
+            </button>
+          </div>
+
+          <div className="mx-1 h-4 w-px bg-border" />
+
+          <ToolbarButton active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()}>
+            <Bold className="size-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            active={editor.isActive("italic")}
+            onClick={() => editor.chain().focus().toggleItalic().run()}
+          >
+            <Italic className="size-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            active={editor.isActive("bulletList")}
+            onClick={() => editor.chain().focus().toggleBulletList().run()}
+          >
+            <List className="size-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            active={editor.isActive("orderedList")}
+            onClick={() => editor.chain().focus().toggleOrderedList().run()}
+          >
+            <ListOrdered className="size-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            active={editor.isActive("taskList")}
+            onClick={() => editor.chain().focus().toggleTaskList().run()}
+          >
+            <ListTodo className="size-4" />
+          </ToolbarButton>
+          <ToolbarButton active={editor.isActive("link")} onClick={openLinkPopover}>
+            <LinkIcon className="size-4" />
+          </ToolbarButton>
+          <ToolbarButton onClick={() => fileInputRef.current?.click()}>
+            <ImageIcon className="size-4" />
+          </ToolbarButton>
+          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImagePick} />
+          <div className="mx-1 h-4 w-px bg-border" />
+          <ToolbarButton onClick={() => editor.chain().focus().undo().run()}>
+            <Undo2 className="size-4" />
+          </ToolbarButton>
+          <ToolbarButton onClick={() => editor.chain().focus().redo().run()}>
+            <Redo2 className="size-4" />
+          </ToolbarButton>
+        </div>
+      )}
       {linkPopoverOpen && (
         <div className="flex items-center gap-2 border-b border-border bg-muted/30 px-3 py-2">
           <LinkIcon className="size-4 shrink-0 text-muted-foreground" />
@@ -309,7 +321,7 @@ export function RichNoteEditor({
         className="min-h-0 flex-1 overflow-y-auto bg-muted/20"
         onMouseDownCapture={handleEditorMouseDownCapture}
       >
-        <EditorContent editor={editor} className="mx-auto max-w-3xl px-4 py-10" />
+        <EditorContent editor={editor} className="mx-auto max-w-5xl px-4 py-10" />
       </div>
     </div>
   );

@@ -213,7 +213,7 @@ export function NotesWorkspace({
             <div
               className={cn(
                 "flex items-center justify-between gap-3 border-b border-border px-6 py-4",
-                focusMode && "mx-auto w-full max-w-3xl",
+                focusMode && "mx-auto w-full max-w-5xl",
               )}
             >
               <input
