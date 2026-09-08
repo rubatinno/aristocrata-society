@@ -38,6 +38,7 @@ import { formatFullDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
   CalendarClock,
+  CalendarDays,
   CalendarX2,
   CheckCircle2,
   Eye,
@@ -45,6 +46,7 @@ import {
   FileText,
   KeyRound,
   Loader2,
+  Mail,
   Maximize2,
   Minimize2,
   NotebookPen,
@@ -56,6 +58,7 @@ import {
   Trash2,
   Users,
   X,
+  type LucideIcon,
 } from "lucide-react";
 
 const initialState: LinkFormState = { status: "idle" };
@@ -181,6 +184,44 @@ export function MenteesDirectory({
         </div>
       )}
     </div>
+  );
+}
+
+/** Botão de ação do card — empilhado (ícone em cima, texto curto embaixo)
+ * numa grade no celular, onde 6 botões com texto ao lado do outro nunca
+ * cabiam (espremiam o nome/e-mail até truncar); em telas maiores volta a
+ * ser um botão normal, ícone + texto completo lado a lado. */
+function MenteeActionButton({
+  icon: Icon,
+  label,
+  shortLabel,
+  onClick,
+  disabled,
+  title,
+  loading,
+}: {
+  icon: LucideIcon;
+  label: string;
+  shortLabel?: string;
+  onClick: () => void;
+  disabled?: boolean;
+  title?: string;
+  loading?: boolean;
+}) {
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className="h-auto flex-col gap-1 py-2.5 sm:h-9 sm:flex-row sm:gap-1.5 sm:py-0"
+    >
+      {loading ? <Loader2 className="size-4 animate-spin sm:size-3.5" /> : <Icon className="size-4 sm:size-3.5" />}
+      <span className="text-[11px] leading-none sm:hidden">{shortLabel ?? label}</span>
+      <span className="hidden text-sm sm:inline">{label}</span>
+    </Button>
   );
 }
 
@@ -391,14 +432,78 @@ function MenteeCard({
     });
   }
 
+  const actionButtons = (
+    <>
+      {isAdmin && (
+        <MenteeActionButton
+          icon={Eye}
+          label="Visualizar como Mentorado"
+          shortLabel="Ver como"
+          onClick={handleViewAsMentee}
+          disabled={!mentee.user_id}
+          title={!mentee.user_id ? "Mentorado ainda não criou a conta" : undefined}
+        />
+      )}
+      <MenteeActionButton
+        icon={Target}
+        label="Progresso"
+        onClick={handleOpenGoals}
+        disabled={!mentee.user_id || loadingGoals}
+        title={!mentee.user_id ? "Mentorado ainda não criou a conta" : undefined}
+        loading={loadingGoals}
+      />
+      <MenteeActionButton
+        icon={NotebookPen}
+        label="Anotações"
+        onClick={handleOpenNotes}
+        disabled={!mentee.user_id || loadingNotes}
+        title={!mentee.user_id ? "Mentorado ainda não criou a conta" : undefined}
+        loading={loadingNotes}
+      />
+      <MenteeActionButton
+        icon={FileText}
+        label="Resumo"
+        onClick={handleOpenSummary}
+        disabled={!mentee.user_id || loadingSummary}
+        title={!mentee.user_id ? "Mentorado ainda não criou a conta" : "Só mentores e admin veem essa aba"}
+        loading={loadingSummary}
+      />
+      <MenteeActionButton
+        icon={Package}
+        label="Produtos"
+        onClick={handleOpenProducts}
+        disabled={!mentee.user_id || loadingProducts}
+        title={!mentee.user_id ? "Mentorado ainda não criou a conta" : undefined}
+        loading={loadingProducts}
+      />
+      {isAdmin && (
+        <MenteeActionButton
+          icon={KeyRound}
+          label="Redefinir senha"
+          shortLabel="Senha"
+          onClick={() => setPasswordOpen(true)}
+          disabled={!mentee.user_id}
+          title={!mentee.user_id ? "Mentorado ainda não criou a conta" : undefined}
+        />
+      )}
+    </>
+  );
+
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium">{mentee.full_name || mentee.email}</p>
-          <p className="truncate text-xs text-muted-foreground">
-            {mentee.email} · desde {formatFullDate(new Date(`${mentee.starts_at}T12:00:00Z`), "UTC")}
-          </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <p className="truncate text-base font-semibold">{mentee.full_name || mentee.email}</p>
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            <span className="inline-flex min-w-0 items-center gap-1">
+              <Mail className="size-3 shrink-0" />
+              <span className="truncate">{mentee.email}</span>
+            </span>
+            <span className="inline-flex shrink-0 items-center gap-1">
+              <CalendarDays className="size-3 shrink-0" />
+              desde {formatFullDate(new Date(`${mentee.starts_at}T12:00:00Z`), "UTC")}
+            </span>
+          </div>
         </div>
         {isAdmin ? (
           <Select
@@ -410,7 +515,7 @@ function MenteeCard({
             onValueChange={handlePlanChange}
             disabled={isChangingPlan}
           >
-            <SelectTrigger className="w-44">
+            <SelectTrigger className="w-full sm:w-44">
               <SelectValue placeholder="Sem plano" />
             </SelectTrigger>
             <SelectContent>
@@ -423,84 +528,14 @@ function MenteeCard({
             </SelectContent>
           </Select>
         ) : (
-          <Badge variant="outline">{mentee.plan?.name ?? "Sem plano (1/semana)"}</Badge>
+          <Badge variant="outline" className="w-fit">
+            {mentee.plan?.name ?? "Sem plano (1/semana)"}
+          </Badge>
         )}
-        {isAdmin && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleViewAsMentee}
-            disabled={!mentee.user_id}
-            title={!mentee.user_id ? "Mentorado ainda não criou a conta" : undefined}
-            className="gap-1.5"
-          >
-            <Eye className="size-3.5" />
-            Visualizar como Mentorado
-          </Button>
-        )}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={handleOpenGoals}
-          disabled={!mentee.user_id || loadingGoals}
-          title={!mentee.user_id ? "Mentorado ainda não criou a conta" : undefined}
-          className="gap-1.5"
-        >
-          {loadingGoals ? <Loader2 className="size-3.5 animate-spin" /> : <Target className="size-3.5" />}
-          Progresso
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={handleOpenNotes}
-          disabled={!mentee.user_id || loadingNotes}
-          title={!mentee.user_id ? "Mentorado ainda não criou a conta" : undefined}
-          className="gap-1.5"
-        >
-          {loadingNotes ? <Loader2 className="size-3.5 animate-spin" /> : <NotebookPen className="size-3.5" />}
-          Anotações
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={handleOpenSummary}
-          disabled={!mentee.user_id || loadingSummary}
-          title={!mentee.user_id ? "Mentorado ainda não criou a conta" : "Só mentores e admin veem essa aba"}
-          className="gap-1.5"
-        >
-          {loadingSummary ? <Loader2 className="size-3.5 animate-spin" /> : <FileText className="size-3.5" />}
-          Resumo
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={handleOpenProducts}
-          disabled={!mentee.user_id || loadingProducts}
-          title={!mentee.user_id ? "Mentorado ainda não criou a conta" : undefined}
-          className="gap-1.5"
-        >
-          {loadingProducts ? <Loader2 className="size-3.5 animate-spin" /> : <Package className="size-3.5" />}
-          Produtos
-        </Button>
-        {isAdmin && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setPasswordOpen(true)}
-            disabled={!mentee.user_id}
-            title={!mentee.user_id ? "Mentorado ainda não criou a conta" : undefined}
-            className="gap-1.5"
-          >
-            <KeyRound className="size-3.5" />
-            Redefinir senha
-          </Button>
-        )}
+      </div>
+
+      <div className="mt-3 grid grid-cols-3 gap-1.5 border-t border-border pt-3 sm:flex sm:flex-wrap sm:items-center sm:gap-2">
+        {actionButtons}
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
