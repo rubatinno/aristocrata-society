@@ -150,8 +150,10 @@ export function NotesWorkspace({
         const note = await createNote(menteeId, revalidateTarget);
         // Adiciona direto no estado local — não dá pra depender só de
         // router.refresh() aqui: no diálogo do mentor as notas não vêm de
-        // props do servidor, foram buscadas manualmente ao abrir.
-        setNotes((prev) => [note, ...prev]);
+        // props do servidor, foram buscadas manualmente ao abrir. O check de
+        // "já existe" evita duplicar se o Realtime entregar o INSERT antes
+        // dessa promise resolver.
+        setNotes((prev) => (prev.some((n) => n.id === note.id) ? prev : [note, ...prev]));
         setSelectedId(note.id);
         router.refresh();
       } catch {

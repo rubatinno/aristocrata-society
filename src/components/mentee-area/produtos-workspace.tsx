@@ -168,7 +168,11 @@ export function ProdutosWorkspace({
   async function handleCreateProduct(input: NewProductInput) {
     try {
       const product = await createProduct(menteeId, input, revalidateTarget);
-      setProducts((prev) => [...prev, product]);
+      // O Realtime pode entregar o INSERT antes dessa promise resolver — sem
+      // checar se já existe, o mesmo produto entrava duas vezes no estado
+      // por um instante (via aqui e via o handler do canal), dando um efeito
+      // de "duplicado" na hora de aparecer o card.
+      setProducts((prev) => (prev.some((p) => p.id === product.id) ? prev : [...prev, product]));
       setSelectedId(product.id);
       setIsProductDialogOpen(false);
     } catch {
@@ -528,7 +532,11 @@ function ProductFolder({
   async function handleCreateCreative(input: NewCreativeInput) {
     try {
       const creative = await createCreative(product.id, menteeId, input, revalidateTarget);
-      setCreatives((prev) => [...prev, creative]);
+      // O Realtime pode entregar o INSERT antes dessa promise resolver — sem
+      // checar se já existe, o mesmo criativo entrava duas vezes no estado
+      // por um instante (via aqui e via o handler do canal), dando um efeito
+      // de "duplicado" na hora de aparecer o card.
+      setCreatives((prev) => (prev.some((c) => c.id === creative.id) ? prev : [...prev, creative]));
       setIsDialogOpen(false);
     } catch {
       toast.error("Não foi possível criar o criativo.");

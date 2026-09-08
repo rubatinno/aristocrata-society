@@ -129,7 +129,10 @@ function GoalSection({
     startCreating(async () => {
       try {
         const goal = await createGoal(menteeId, title, section.kind, revalidateTarget);
-        setGoals((prev) => [...prev, goal]);
+        // Evita duplicar se o Realtime entregar o INSERT antes dessa promise
+        // resolver (o handler do canal também insere, sem esse check as duas
+        // vias somavam o mesmo item duas vezes por um instante).
+        setGoals((prev) => (prev.some((g) => g.id === goal.id) ? prev : [...prev, goal]));
         setNewTitle("");
       } catch {
         toast.error("Não foi possível criar o item.");
