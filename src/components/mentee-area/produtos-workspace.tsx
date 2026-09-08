@@ -14,7 +14,9 @@ import {
   deleteProduct,
   renameProduct,
   updateCreative,
+  updateProductLinks,
   type NewCreativeInput,
+  type NewProductInput,
 } from "@/app/agendar/produtos/actions";
 import type { MenteeProduct, MenteeProductCreative } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -22,9 +24,13 @@ import {
   ArrowDownWideNarrow,
   ArrowLeft,
   ArrowUpNarrowWide,
+  BadgeCheck,
   CalendarDays,
   Check,
+  CircleDashed,
   ExternalLink,
+  Globe,
+  Library,
   Link2,
   Loader2,
   Package,
@@ -33,6 +39,7 @@ import {
   ShoppingBag,
   Sparkles,
   Trash2,
+  TrendingUp,
   X,
 } from "lucide-react";
 
@@ -46,14 +53,33 @@ function todayKey() {
   return `${year}-${month}-${day}`;
 }
 
-function ProductStats({ creatives }: { creatives: MenteeProductCreative[] }) {
+function productStats(creatives: MenteeProductCreative[]) {
   const validated = creatives.filter((c) => c.validated).length;
   const sales = creatives.reduce((sum, c) => sum + c.sales, 0);
+  return { total: creatives.length, validated, sales };
+}
+
+function StatBadge({
+  icon: Icon,
+  children,
+  tone = "muted",
+}: {
+  icon: typeof ShoppingBag;
+  children: React.ReactNode;
+  tone?: "muted" | "success" | "primary";
+}) {
   return (
-    <p className="text-xs text-muted-foreground">
-      {creatives.length} criativo{creatives.length === 1 ? "" : "s"} · {validated} validado
-      {validated === 1 ? "" : "s"} · {sales} venda{sales === 1 ? "" : "s"}
-    </p>
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+        tone === "success" && "bg-success/15 text-success",
+        tone === "primary" && "bg-primary/10 text-primary",
+        tone === "muted" && "bg-muted text-muted-foreground",
+      )}
+    >
+      <Icon className="size-3" />
+      {children}
+    </span>
   );
 }
 
@@ -75,9 +101,7 @@ export function ProdutosWorkspace({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
-  const [isAddingProduct, setIsAddingProduct] = useState(false);
-  const [draftName, setDraftName] = useState("");
-  const [isCreatingProduct, setIsCreatingProduct] = useState(false);
+  const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -141,24 +165,15 @@ export function ProdutosWorkspace({
     };
   }, [menteeId]);
 
-  function commitNewProduct() {
-    const name = draftName.trim();
-    if (!name) return;
-    setIsAddingProduct(false);
-    setIsCreatingProduct(true);
-    createProduct(menteeId, name, revalidateTarget)
-      .then((product) => {
-        setProducts((prev) => [...prev, product]);
-        setSelectedId(product.id);
-        setDraftName("");
-      })
-      .catch(() => toast.error("Não foi possível criar o produto."))
-      .finally(() => setIsCreatingProduct(false));
-  }
-
-  function cancelNewProduct() {
-    setIsAddingProduct(false);
-    setDraftName("");
+  async function handleCreateProduct(input: NewProductInput) {
+    try {
+      const product = await createProduct(menteeId, input, revalidateTarget);
+      setProducts((prev) => [...prev, product]);
+      setSelectedId(product.id);
+      setIsProductDialogOpen(false);
+    } catch {
+      toast.error("Não foi possível criar o produto.");
+    }
   }
 
   function startRename(product: MenteeProduct) {
@@ -192,10 +207,14 @@ export function ProdutosWorkspace({
     });
   }
 
+  function patchProduct(id: string, patch: Partial<MenteeProduct>) {
+    setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  }
+
   const selectedProduct = products.find((p) => p.id === selectedId) ?? null;
 
   return (
-    <div className={cn("flex min-h-0 flex-col overflow-y-auto p-6", className)}>
+    <div className={cn("flex min-h-0 flex-col overflow-y-auto p-4 sm:p-6", className)}>
       {selectedProduct ? (
         <ProductFolder
           product={selectedProduct}
@@ -203,56 +222,29 @@ export function ProdutosWorkspace({
           menteeId={menteeId}
           revalidateTarget={revalidateTarget}
           setCreatives={setCreatives}
+          onPatchProduct={(patch) => patchProduct(selectedProduct.id, patch)}
           onBack={() => setSelectedId(null)}
         />
       ) : (
         <>
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="font-heading text-lg font-semibold">Produtos</h2>
               <p className="text-sm text-muted-foreground">
                 Sua central pra organizar produtos e criativos testados.
               </p>
             </div>
-            {isAddingProduct ? (
-              <div className="flex shrink-0 items-center gap-2">
-                <Input
-                  autoFocus
-                  value={draftName}
-                  onChange={(e) => setDraftName(e.target.value)}
-                  placeholder="Nome do produto"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      commitNewProduct();
-                    } else if (e.key === "Escape") {
-                      e.preventDefault();
-                      cancelNewProduct();
-                    }
-                  }}
-                  className="h-9 w-48"
-                />
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={commitNewProduct}
-                  disabled={isCreatingProduct || !draftName.trim()}
-                  className="gap-1.5"
-                >
-                  {isCreatingProduct ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
-                  Criar
-                </Button>
-                <Button type="button" variant="ghost" size="sm" onClick={cancelNewProduct}>
-                  Cancelar
-                </Button>
-              </div>
-            ) : (
-              <Button type="button" onClick={() => setIsAddingProduct(true)} className="shrink-0 gap-1.5">
-                <Plus className="size-3.5" />
-                Novo produto
-              </Button>
-            )}
+            <Button type="button" onClick={() => setIsProductDialogOpen(true)} className="shrink-0 gap-1.5">
+              <Plus className="size-3.5" />
+              Novo produto
+            </Button>
           </div>
+
+          <NewProductDialog
+            open={isProductDialogOpen}
+            onOpenChange={setIsProductDialogOpen}
+            onCreate={handleCreateProduct}
+          />
 
           {products.length === 0 ? (
             <div className="mt-6 flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border py-14 text-center">
@@ -265,19 +257,21 @@ export function ProdutosWorkspace({
           ) : (
             <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {products.map((product) => {
-                const productCreatives = creatives.filter((c) => c.product_id === product.id);
+                const stats = productStats(creatives.filter((c) => c.product_id === product.id));
                 return (
                   <div
                     key={product.id}
-                    className="group flex flex-col gap-2 rounded-2xl border border-border bg-card p-4 text-left transition-colors hover:border-primary/40"
+                    className="group flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-colors hover:border-primary/40"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <button
                         type="button"
                         onClick={() => setSelectedId(product.id)}
-                        className="flex min-w-0 items-center gap-2 text-left"
+                        className="flex min-w-0 flex-1 items-center gap-2 text-left"
                       >
-                        <Package className="size-4 shrink-0 text-primary" />
+                        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                          <Package className="size-4" />
+                        </span>
                         {renamingId === product.id ? (
                           <Input
                             autoFocus
@@ -291,13 +285,13 @@ export function ProdutosWorkspace({
                                 commitRename(product);
                               }
                             }}
-                            className="h-7"
+                            className="h-8"
                           />
                         ) : (
-                          <span className="truncate text-sm font-medium">{product.name}</span>
+                          <span className="min-w-0 flex-1 truncate text-sm font-semibold">{product.name}</span>
                         )}
                       </button>
-                      <div className="flex shrink-0 items-center opacity-0 transition-opacity group-hover:opacity-100">
+                      <div className="flex shrink-0 items-center opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
                         <Button
                           type="button"
                           variant="ghost"
@@ -326,9 +320,49 @@ export function ProdutosWorkspace({
                         </Button>
                       </div>
                     </div>
-                    <button type="button" onClick={() => setSelectedId(product.id)} className="text-left">
-                      <ProductStats creatives={productCreatives} />
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedId(product.id)}
+                      className="flex flex-wrap items-center gap-1.5 text-left"
+                    >
+                      <StatBadge icon={ShoppingBag}>
+                        {stats.total} criativo{stats.total === 1 ? "" : "s"}
+                      </StatBadge>
+                      <StatBadge icon={BadgeCheck} tone="success">
+                        {stats.validated} validado{stats.validated === 1 ? "" : "s"}
+                      </StatBadge>
+                      <StatBadge icon={TrendingUp} tone="primary">
+                        {stats.sales} venda{stats.sales === 1 ? "" : "s"}
+                      </StatBadge>
                     </button>
+
+                    {(product.sales_page_link || product.ad_library_link) && (
+                      <div className="flex flex-wrap items-center gap-1.5 border-t border-border pt-3">
+                        {product.sales_page_link && (
+                          <a
+                            href={product.sales_page_link}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                          >
+                            <Globe className="size-3" /> Página de vendas
+                          </a>
+                        )}
+                        {product.ad_library_link && (
+                          <a
+                            href={product.ad_library_link}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                          >
+                            <Library className="size-3" /> Biblioteca
+                          </a>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -337,6 +371,103 @@ export function ProdutosWorkspace({
         </>
       )}
     </div>
+  );
+}
+
+function NewProductDialog({
+  open,
+  onOpenChange,
+  onCreate,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onCreate: (input: NewProductInput) => Promise<void>;
+}) {
+  const [name, setName] = useState("");
+  const [salesPageLink, setSalesPageLink] = useState("");
+  const [adLibraryLink, setAdLibraryLink] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reseta o formulário ao reabrir, não sincroniza com nada externo
+      setName("");
+      setSalesPageLink("");
+      setAdLibraryLink("");
+    }
+  }, [open]);
+
+  function handleCreate() {
+    if (!name.trim()) return;
+    setIsSaving(true);
+    onCreate({ name, salesPageLink, adLibraryLink }).finally(() => setIsSaving(false));
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Sparkles className="size-4 text-primary" />
+            Novo produto
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Nome do produto</label>
+            <Input
+              autoFocus
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ex: Curso de tráfego pago"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleCreate();
+                }
+              }}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Link da página de vendas</label>
+            <div className="relative">
+              <Globe className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={salesPageLink}
+                onChange={(e) => setSalesPageLink(e.target.value)}
+                placeholder="https://..."
+                className="pl-8"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Biblioteca de anúncios</label>
+            <div className="relative">
+              <Library className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={adLibraryLink}
+                onChange={(e) => setAdLibraryLink(e.target.value)}
+                placeholder="Link da Meta Ads Library, por exemplo"
+                className="pl-8"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-2 flex justify-end gap-2">
+          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={isSaving}>
+            Cancelar
+          </Button>
+          <Button type="button" onClick={handleCreate} disabled={isSaving || !name.trim()} className="gap-1.5">
+            {isSaving ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
+            Criar produto
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -373,6 +504,7 @@ function ProductFolder({
   menteeId,
   revalidateTarget,
   setCreatives,
+  onPatchProduct,
   onBack,
 }: {
   product: MenteeProduct;
@@ -380,6 +512,7 @@ function ProductFolder({
   menteeId: string;
   revalidateTarget: string;
   setCreatives: React.Dispatch<React.SetStateAction<MenteeProductCreative[]>>;
+  onPatchProduct: (patch: Partial<MenteeProduct>) => void;
   onBack: () => void;
 }) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -387,6 +520,10 @@ function ProductFolder({
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [editingLinks, setEditingLinks] = useState(false);
+  const [salesPageInput, setSalesPageInput] = useState(product.sales_page_link ?? "");
+  const [adLibraryInput, setAdLibraryInput] = useState(product.ad_library_link ?? "");
+  const [isSavingLinks, setIsSavingLinks] = useState(false);
 
   async function handleCreateCreative(input: NewCreativeInput) {
     try {
@@ -407,6 +544,19 @@ function ProductFolder({
     setCreatives((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
   }
 
+  function handleSaveLinks() {
+    setIsSavingLinks(true);
+    const patch = {
+      sales_page_link: salesPageInput.trim() || null,
+      ad_library_link: adLibraryInput.trim() || null,
+    };
+    onPatchProduct(patch);
+    updateProductLinks(product.id, patch, revalidateTarget)
+      .then(() => setEditingLinks(false))
+      .catch(() => toast.error("Não foi possível salvar os links."))
+      .finally(() => setIsSavingLinks(false));
+  }
+
   const hasDateFilter = dateFrom !== "" || dateTo !== "";
 
   const visibleCreatives = useMemo(() => {
@@ -423,6 +573,9 @@ function ProductFolder({
     return sortDirection === "asc" ? sorted : sorted.reverse();
   }, [creatives, sortField, sortDirection, dateFrom, dateTo, hasDateFilter]);
 
+  const stats = productStats(creatives);
+  const hasLinks = product.sales_page_link || product.ad_library_link;
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex items-center gap-3">
@@ -431,13 +584,93 @@ function ProductFolder({
         </Button>
         <div className="min-w-0 flex-1">
           <h2 className="truncate font-heading text-lg font-semibold">{product.name}</h2>
-          <ProductStats creatives={creatives} />
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            <StatBadge icon={ShoppingBag}>
+              {stats.total} criativo{stats.total === 1 ? "" : "s"}
+            </StatBadge>
+            <StatBadge icon={BadgeCheck} tone="success">
+              {stats.validated} validado{stats.validated === 1 ? "" : "s"}
+            </StatBadge>
+            <StatBadge icon={TrendingUp} tone="primary">
+              {stats.sales} venda{stats.sales === 1 ? "" : "s"}
+            </StatBadge>
+          </div>
         </div>
         <Button type="button" onClick={() => setIsDialogOpen(true)} className="shrink-0 gap-1.5">
           <Plus className="size-3.5" />
           Novo criativo
         </Button>
       </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+        {product.sales_page_link && (
+          <a
+            href={product.sales_page_link}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/15"
+          >
+            <Globe className="size-3.5" /> Página de vendas
+          </a>
+        )}
+        {product.ad_library_link && (
+          <a
+            href={product.ad_library_link}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <Library className="size-3.5" /> Biblioteca de anúncios
+          </a>
+        )}
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => setEditingLinks((v) => !v)}
+          className="gap-1.5 text-xs text-muted-foreground"
+        >
+          <Pencil className="size-3.5" />
+          {hasLinks ? "Editar links" : "Adicionar links"}
+        </Button>
+      </div>
+
+      {editingLinks && (
+        <div className="mt-2 space-y-3 rounded-xl border border-border bg-muted/30 p-3">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Link da página de vendas</label>
+            <div className="relative">
+              <Globe className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={salesPageInput}
+                onChange={(e) => setSalesPageInput(e.target.value)}
+                placeholder="https://..."
+                className="pl-8"
+              />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Biblioteca de anúncios</label>
+            <div className="relative">
+              <Library className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={adLibraryInput}
+                onChange={(e) => setAdLibraryInput(e.target.value)}
+                placeholder="Link da Meta Ads Library, por exemplo"
+                className="pl-8"
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button type="button" size="sm" onClick={handleSaveLinks} disabled={isSavingLinks} className="gap-1.5">
+              {isSavingLinks && <Loader2 className="size-3.5 animate-spin" />} Salvar
+            </Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setEditingLinks(false)}>
+              Cancelar
+            </Button>
+          </div>
+        </div>
+      )}
 
       <NewCreativeDialog
         open={isDialogOpen}
@@ -489,7 +722,7 @@ function ProductFolder({
               {sortDirection === "asc" ? "Crescente" : "Decrescente"}
             </Button>
 
-            <span className="ml-2 text-xs text-muted-foreground">Data de teste</span>
+            <span className="text-xs text-muted-foreground sm:ml-2">Data de teste</span>
             <Input
               type="date"
               value={dateFrom}
@@ -524,7 +757,7 @@ function ProductFolder({
               Nenhum criativo com data de teste nesse período.
             </p>
           ) : (
-            <div className="mt-3 space-y-2">
+            <div className="mt-3 space-y-2.5">
               {visibleCreatives.map((creative) => (
                 <CreativeRow
                   key={creative.id}
@@ -799,15 +1032,27 @@ function CreativeRow({
 
   if (isEditing) {
     return (
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-3">
-        <Input
-          value={title}
-          onChange={(e) => handleTitleChange(e.target.value)}
-          placeholder="Nome do criativo"
-          className="h-9 w-40 shrink-0"
-        />
+      <div className="space-y-2.5 rounded-xl border border-border bg-card p-3">
+        <div className="flex items-center gap-2">
+          <Input
+            value={title}
+            onChange={(e) => handleTitleChange(e.target.value)}
+            placeholder="Nome do criativo"
+            className="h-9 flex-1"
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={onDelete}
+            className="shrink-0 text-muted-foreground hover:text-destructive"
+            title="Remover criativo"
+          >
+            <Trash2 className="size-3.5" />
+          </Button>
+        </div>
 
-        <div className="relative min-w-48 flex-1">
+        <div className="relative">
           <Link2 className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={link}
@@ -817,76 +1062,73 @@ function CreativeRow({
           />
         </div>
 
-        <ValidatedSelect validated={creative.validated} onChange={handleValidatedChange} />
-
-        <SalesField value={sales} onChange={handleSalesChange} onKeyDown={handleSalesKeyDown} />
-
-        <TestDateField value={testDate} onChange={handleTestDateChange} />
-
-        <Button type="button" size="sm" onClick={handleSave} className="shrink-0 gap-1.5">
-          <Check className="size-3.5" />
-          Salvar
-        </Button>
-
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          onClick={onDelete}
-          className="ml-auto shrink-0 text-muted-foreground hover:text-destructive"
-          title="Remover criativo"
-        >
-          <Trash2 className="size-3.5" />
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <ValidatedSelect validated={creative.validated} onChange={handleValidatedChange} />
+          <SalesField value={sales} onChange={handleSalesChange} onKeyDown={handleSalesKeyDown} />
+          <TestDateField value={testDate} onChange={handleTestDateChange} />
+          <Button type="button" size="sm" onClick={handleSave} className="ml-auto gap-1.5">
+            <Check className="size-3.5" />
+            Salvar
+          </Button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-3">
-      <span className="min-w-0 flex-1 truncate text-sm font-medium">{title || "Sem nome"}</span>
+    <div className="rounded-xl border border-border bg-card p-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+          {creative.validated ? (
+            <BadgeCheck className="size-4 shrink-0 text-success" />
+          ) : (
+            <CircleDashed className="size-4 shrink-0 text-muted-foreground" />
+          )}
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold">{title || "Sem nome"}</span>
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => setIsEditing(true)}
+            className="text-muted-foreground hover:text-foreground"
+            title="Editar nome e link"
+          >
+            <Pencil className="size-3.5" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={onDelete}
+            className="text-muted-foreground hover:text-destructive"
+            title="Remover criativo"
+          >
+            <Trash2 className="size-3.5" />
+          </Button>
+        </div>
+      </div>
 
-      {link.trim() ? (
-        <a
-          href={link.trim()}
-          target="_blank"
-          rel="noreferrer"
-          className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-3 text-xs font-medium text-primary transition-colors hover:bg-primary/15"
-        >
-          <ExternalLink className="size-3.5" />
-          Abrir Criativo
-        </a>
-      ) : (
-        <span className="shrink-0 text-xs text-muted-foreground">Sem link</span>
-      )}
+      <div className="mt-2.5 flex flex-wrap items-center gap-2">
+        {link.trim() ? (
+          <a
+            href={link.trim()}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-3 text-xs font-medium text-primary transition-colors hover:bg-primary/15"
+          >
+            <ExternalLink className="size-3.5" />
+            Abrir Criativo
+          </a>
+        ) : (
+          <span className="shrink-0 text-xs text-muted-foreground">Sem link</span>
+        )}
 
-      <ValidatedSelect validated={creative.validated} onChange={handleValidatedChange} />
-
-      <SalesField value={sales} onChange={handleSalesChange} onKeyDown={handleSalesKeyDown} />
-
-      <TestDateField value={testDate} onChange={handleTestDateChange} />
-
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-sm"
-        onClick={() => setIsEditing(true)}
-        className="shrink-0 text-muted-foreground hover:text-foreground"
-        title="Editar nome e link"
-      >
-        <Pencil className="size-3.5" />
-      </Button>
-
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-sm"
-        onClick={onDelete}
-        className="shrink-0 text-muted-foreground hover:text-destructive"
-        title="Remover criativo"
-      >
-        <Trash2 className="size-3.5" />
-      </Button>
+        <ValidatedSelect validated={creative.validated} onChange={handleValidatedChange} />
+        <SalesField value={sales} onChange={handleSalesChange} onKeyDown={handleSalesKeyDown} />
+        <TestDateField value={testDate} onChange={handleTestDateChange} />
+      </div>
     </div>
   );
 }
