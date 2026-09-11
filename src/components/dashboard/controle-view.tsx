@@ -20,6 +20,7 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronUp,
+  FileDown,
   Loader2,
   Mail,
   MessageCircle,
@@ -410,34 +411,52 @@ function MentorPaymentCard({ mentor }: { mentor: MentorWithPayments }) {
 
       {showHistory && mentor.payments.length > 0 && (
         <div className="mt-3 space-y-1.5 border-t border-border pt-3">
-          {mentor.payments.map((payment) => (
-            <div
-              key={payment.id}
-              className="flex items-center gap-2 rounded-lg border border-border/60 px-3 py-2 text-xs"
-            >
-              <div className="min-w-0 flex-1">
-                <span className="font-medium text-foreground">{formatCurrency(payment.amount)}</span>{" "}
-                <span className="text-muted-foreground">
-                  · pago até {formatFullDate(new Date(`${payment.paid_through}T12:00:00Z`), "UTC")}
-                  {payment.notes ? ` · ${payment.notes}` : ""}
-                </span>
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => handleRemovePayment(payment.id)}
-                disabled={isRemoving && removingId === payment.id}
-                className="shrink-0 text-muted-foreground hover:text-destructive"
+          {mentor.payments.map((payment, index) => {
+            // Ordenado desc por paid_through — o próximo do array é o
+            // pagamento anterior (mais antigo), que marca o início do
+            // período coberto por este.
+            const previousPaidThrough = mentor.payments[index + 1]?.paid_through;
+            const reportHref = `/relatorio/controle/${mentor.id}?before=${payment.paid_through}${
+              previousPaidThrough ? `&after=${previousPaidThrough}` : ""
+            }`;
+            return (
+              <div
+                key={payment.id}
+                className="flex items-center gap-2 rounded-lg border border-border/60 px-3 py-2 text-xs"
               >
-                {isRemoving && removingId === payment.id ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <Trash2 className="size-3.5" />
-                )}
-              </Button>
-            </div>
-          ))}
+                <div className="min-w-0 flex-1">
+                  <span className="font-medium text-foreground">{formatCurrency(payment.amount)}</span>{" "}
+                  <span className="text-muted-foreground">
+                    · pago até {formatFullDate(new Date(`${payment.paid_through}T12:00:00Z`), "UTC")}
+                    {payment.notes ? ` · ${payment.notes}` : ""}
+                  </span>
+                </div>
+                <a
+                  href={reportHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Exportar PDF desse pagamento"
+                  className="flex size-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  <FileDown className="size-3.5" />
+                </a>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => handleRemovePayment(payment.id)}
+                  disabled={isRemoving && removingId === payment.id}
+                  className="shrink-0 text-muted-foreground hover:text-destructive"
+                >
+                  {isRemoving && removingId === payment.id ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="size-3.5" />
+                  )}
+                </Button>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -540,13 +559,26 @@ function UnpaidCallsDialog({
           )}
         </div>
 
-        <div className="flex shrink-0 items-center justify-between border-t border-border p-4 text-sm">
-          <span className="text-muted-foreground">
-            {mentor.unpaidCalls} chamada{mentor.unpaidCalls === 1 ? "" : "s"} no total
-          </span>
-          {mentor.amountOwed !== null && (
-            <span className="font-semibold text-foreground">{formatCurrency(mentor.amountOwed)}</span>
-          )}
+        <div className="flex shrink-0 flex-col gap-3 border-t border-border p-4">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">
+              {mentor.unpaidCalls} chamada{mentor.unpaidCalls === 1 ? "" : "s"} no total
+            </span>
+            {mentor.amountOwed !== null && (
+              <span className="font-semibold text-foreground">{formatCurrency(mentor.amountOwed)}</span>
+            )}
+          </div>
+          <a
+            href={`/relatorio/controle/${mentor.id}?before=${todayKey()}${
+              mentor.lastPaidThrough ? `&after=${mentor.lastPaidThrough}` : ""
+            }`}
+            target="_blank"
+            rel="noreferrer"
+            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-border py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <FileDown className="size-3.5" />
+            Exportar PDF
+          </a>
         </div>
       </DialogContent>
     </Dialog>
