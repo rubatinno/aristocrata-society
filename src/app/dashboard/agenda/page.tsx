@@ -1,10 +1,12 @@
 import { AgendaView } from "@/components/dashboard/agenda-view";
 import { requireMentor } from "@/lib/session";
 import { listBookings } from "@/lib/dashboard-data";
+import { listApprovedMenteesForBooking } from "@/app/dashboard/agenda/actions";
 
 export default async function AgendaPage() {
   const { supabase, profile } = await requireMentor();
   const bookings = await listBookings(supabase, profile.id);
+  const menteeOptions = await listApprovedMenteesForBooking();
   const now = new Date();
 
   const emails = Array.from(new Set(bookings.map((b) => b.mentee_email)));
@@ -50,6 +52,7 @@ export default async function AgendaPage() {
         cancelled={cancelled}
         timeZone={profile.timezone}
         groupLinkByEmail={Object.fromEntries(groupLinkByEmail)}
+        menteeOptions={menteeOptions}
       />
     </div>
   );

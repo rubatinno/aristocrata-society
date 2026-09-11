@@ -12,6 +12,7 @@ import {
   deleteMentorPayment,
   setMentorRate,
 } from "@/app/dashboard/controle/actions";
+import { removeMentor } from "@/app/dashboard/equipe/actions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { Booking, MentorDiscordCall, MentorPayment, Profile } from "@/lib/types";
 import { formatDateTime, formatFullDate } from "@/lib/format";
@@ -52,7 +53,13 @@ function todayKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function ControleView({ mentors }: { mentors: MentorWithPayments[] }) {
+export function ControleView({
+  mentors,
+  currentUserId,
+}: {
+  mentors: MentorWithPayments[];
+  currentUserId: string;
+}) {
   if (mentors.length === 0) {
     return (
       <p className="rounded-2xl border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
@@ -64,13 +71,13 @@ export function ControleView({ mentors }: { mentors: MentorWithPayments[] }) {
   return (
     <div className="space-y-3">
       {mentors.map((mentor) => (
-        <MentorPaymentCard key={mentor.id} mentor={mentor} />
+        <MentorPaymentCard key={mentor.id} mentor={mentor} isSelf={mentor.id === currentUserId} />
       ))}
     </div>
   );
 }
 
-function MentorPaymentCard({ mentor }: { mentor: MentorWithPayments }) {
+function MentorPaymentCard({ mentor, isSelf }: { mentor: MentorWithPayments; isSelf: boolean }) {
   const [editingRate, setEditingRate] = useState(false);
   const [rateInput, setRateInput] = useState(mentor.rate_per_call?.toString() ?? "");
   const [isSavingRate, startSavingRate] = useTransition();
@@ -96,6 +103,25 @@ function MentorPaymentCard({ mentor }: { mentor: MentorWithPayments }) {
   const [isRemovingDiscord, startRemovingDiscord] = useTransition();
 
   const [showUnpaidDetail, setShowUnpaidDetail] = useState(false);
+  const [isRemovingMentor, startRemovingMentor] = useTransition();
+
+  function handleRemoveMentor() {
+    if (
+      !window.confirm(
+        `Remover ${mentor.full_name || "esse mentor"} da equipe? Isso também apaga o histórico de mentorias dele(a). Essa ação não pode ser desfeita.`,
+      )
+    ) {
+      return;
+    }
+    startRemovingMentor(async () => {
+      try {
+        await removeMentor(mentor.id);
+        toast.success("Mentor removido da equipe.");
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Não foi possível remover.");
+      }
+    });
+  }
 
   function handleSaveRate() {
     const rate = rateInput.trim() === "" ? null : Number.parseFloat(rateInput);
@@ -208,6 +234,19 @@ function MentorPaymentCard({ mentor }: { mentor: MentorWithPayments }) {
             <Pencil className="size-3" />
             {mentor.rate_per_call ? `${formatCurrency(mentor.rate_per_call)} / call` : "Definir valor/call"}
           </button>
+        )}
+        {!isSelf && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={handleRemoveMentor}
+            disabled={isRemovingMentor}
+            title="Remover mentor da equipe"
+            className="shrink-0 text-muted-foreground hover:text-destructive"
+          >
+            {isRemovingMentor ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+          </Button>
         )}
       </div>
 
@@ -347,6 +386,7 @@ function MentorPaymentCard({ mentor }: { mentor: MentorWithPayments }) {
                 {call.quantity > 1 ? (
                   <span className="text-muted-foreground"> · {call.quantity} chamadas</span>
                 ) : null}
+                {!call.completed && <span className="text-destructive"> · não realizada</span>}
                 {call.notes ? <span className="text-muted-foreground"> · {call.notes}</span> : null}
               </div>
               <Button

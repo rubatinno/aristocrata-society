@@ -66,6 +66,7 @@ export default async function ControleRelatorioPage({
 
   const filteredDiscordCalls = ((discordCalls as MentorDiscordCall[]) ?? [])
     .filter((c) => {
+      if (!c.completed) return false;
       if (after && c.call_date <= after) return false;
       return c.call_date <= untilDate;
     })

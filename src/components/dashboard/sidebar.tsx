@@ -11,6 +11,7 @@ import {
   Users,
   Layers,
   LineChart,
+  MessageCircle,
   ShieldCheck,
   UsersRound,
   Wallet,
@@ -27,6 +28,7 @@ type NavLink = { href: string; label: string; icon?: LucideIcon; iconSrc?: strin
 const baseLinks: NavLink[] = [
   { href: "/dashboard", label: "Visão geral", icon: LayoutDashboard },
   { href: "/dashboard/agenda", label: "Agenda", icon: CalendarDays },
+  { href: "/dashboard/discord", label: "Discord", icon: MessageCircle },
   { href: "/dashboard/disponibilidade", label: "Disponibilidade", icon: Clock },
   { href: "/dashboard/mentorados", label: "Mentorados", icon: Users },
   { href: DISCORD_URL, label: "Discord Oficial", iconSrc: "/icons/discord.png", external: true },

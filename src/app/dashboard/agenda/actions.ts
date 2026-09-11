@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { fromZonedTime } from "date-fns-tz";
 import { createClient } from "@/lib/supabase/server";
+import { requireMentor } from "@/lib/session";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   createCalendarEvent,
   deleteCalendarEvent,
@@ -156,6 +158,148 @@ export async function rescheduleBooking(
       console.error("Falha ao sincronizar reagendamento com o Google Calendar:", err);
     }
   }
+
+  return { ok: true };
+}
+
+export interface MenteeOption {
+  id: string; // id de approved_mentees, não o user_id
+  fullName: string;
+  email: string;
+}
+
+/** Lista pro seletor de mentorado no agendamento manual — qualquer mentor
+ * pode ver a lista inteira de aprovados (RLS já permite isso). */
+export async function listApprovedMenteesForBooking(): Promise<MenteeOption[]> {
+  const { supabase } = await requireMentor();
+
+  const { data } = await supabase
+    .from("approved_mentees")
+    .select("id, full_name, email")
+    .eq("role", "mentee")
+    .eq("status", "approved")
+    .order("full_name");
+
+  return (data ?? []).map((m) => ({
+    id: m.id,
+    fullName: m.full_name || m.email,
+    email: m.email,
+  }));
+}
+
+export interface ManualBookingResult {
+  ok: boolean;
+  message?: string;
+}
+
+/**
+ * Agendamento criado manualmente pelo mentor (ex: mentorado combinou por
+ * fora, tipo WhatsApp) — grava um booking de verdade, igual ao criado pelo
+ * fluxo normal, então aparece igual pros dois lados (mentor e mentorado) em
+ * Agenda, Histórico, Financeiro, Gestão, Controle, etc.
+ *
+ * Usa a service role porque não existe policy de insert em bookings pro
+ * papel de mentor (só o fluxo de agendamento público insere, com a service
+ * role, depois de validar o horário) — mas quem chama aqui precisa ser o
+ * próprio mentor autenticado, verificado por requireMentor().
+ */
+export async function createManualBooking(input: {
+  approvedMenteeId: string;
+  dateKey: string; // yyyy-MM-dd, no fuso do mentor
+  time: string; // HH:mm
+  durationMinutes: number;
+  notes: string;
+  markCompleted: boolean;
+}): Promise<ManualBookingResult> {
+  const { user, profile } = await requireMentor();
+
+  if (!input.approvedMenteeId) return { ok: false, message: "Selecione um mentorado." };
+  if (!input.dateKey || !input.time) return { ok: false, message: "Informe data e horário." };
+
+  const admin = createAdminClient();
+
+  const { data: mentee } = await admin
+    .from("approved_mentees")
+    .select("*")
+    .eq("id", input.approvedMenteeId)
+    .eq("role", "mentee")
+    .eq("status", "approved")
+    .maybeSingle();
+
+  if (!mentee) return { ok: false, message: "Mentorado não encontrado ou não aprovado." };
+
+  const timeZone = profile.timezone;
+  const startsAt = fromZonedTime(`${input.dateKey}T${input.time}`, timeZone);
+  if (Number.isNaN(startsAt.getTime())) return { ok: false, message: "Data/hora inválida." };
+
+  const durationMinutes = input.durationMinutes > 0 ? input.durationMinutes : 60;
+  const endsAt = new Date(startsAt.getTime() + durationMinutes * 60_000);
+
+  const { data: busy } = await admin.rpc("get_busy_ranges", {
+    p_mentor_id: user.id,
+    p_from: startsAt.toISOString(),
+    p_to: endsAt.toISOString(),
+  });
+
+  if (busy && busy.length > 0) {
+    return { ok: false, message: "Você já tem uma chamada marcada nesse horário. Escolha outro horário." };
+  }
+
+  const menteeName = mentee.full_name || mentee.email;
+
+  const { data: newBooking, error } = await admin
+    .from("bookings")
+    .insert({
+      mentor_id: user.id,
+      mentee_id: mentee.user_id,
+      mentee_name: menteeName,
+      mentee_email: mentee.email,
+      mentee_phone: mentee.phone ?? "",
+      notes: input.notes.trim() || null,
+      starts_at: startsAt.toISOString(),
+      ends_at: endsAt.toISOString(),
+      status: input.markCompleted ? "concluida" : "confirmada",
+      meeting_link: null,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    if (error.code === "23P01") {
+      return { ok: false, message: "Você já tem uma chamada marcada nesse horário. Escolha outro horário." };
+    }
+    return { ok: false, message: "Não foi possível criar o agendamento." };
+  }
+
+  // Melhor esforço: cria o evento no Google Calendar do mentor, se ele tiver
+  // conectado a conta. Nunca deixa uma falha aqui derrubar o agendamento —
+  // o agendamento em si já está confirmado nesse ponto.
+  try {
+    if (profile.google_calendar_connected) {
+      const accessToken = await getMentorAccessToken(user.id);
+      if (accessToken) {
+        const eventId = await createCalendarEvent({
+          accessToken,
+          summary: `Mentoria: ${profile.full_name} + ${menteeName}`,
+          description: input.notes.trim() || undefined,
+          startsAt: startsAt.toISOString(),
+          endsAt: endsAt.toISOString(),
+          timeZone,
+          attendeeEmail: mentee.email,
+        });
+        if (eventId) {
+          await admin.from("bookings").update({ google_event_id: eventId }).eq("id", newBooking.id);
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Falha ao sincronizar agendamento manual com o Google Calendar:", err);
+  }
+
+  revalidatePath("/dashboard/agenda");
+  revalidatePath("/dashboard");
+  revalidatePath("/agendar");
+  revalidatePath("/agendar/historico");
 
   return { ok: true };
 }

@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { BookingRow } from "@/components/dashboard/booking-row";
 import { BookingActions } from "@/components/dashboard/booking-actions";
 import { EmptyState } from "@/components/dashboard/empty-state";
+import { ManualBookingDialog } from "@/components/dashboard/manual-booking-dialog";
+import type { MenteeOption } from "@/app/dashboard/agenda/actions";
 import type { Booking } from "@/lib/types";
 import { CalendarClock, CalendarDays, CalendarCheck2, CalendarX2, Search, X } from "lucide-react";
 
@@ -30,6 +32,7 @@ export function AgendaView({
   cancelled,
   timeZone,
   groupLinkByEmail = {},
+  menteeOptions = [],
 }: {
   upcoming: Booking[];
   pending: Booking[];
@@ -37,6 +40,7 @@ export function AgendaView({
   cancelled: Booking[];
   timeZone: string;
   groupLinkByEmail?: Record<string, string>;
+  menteeOptions?: MenteeOption[];
 }) {
   const [query, setQuery] = useState("");
   const [from, setFrom] = useState("");
@@ -81,6 +85,7 @@ export function AgendaView({
             <X className="size-3.5" /> Limpar
           </Button>
         )}
+        <ManualBookingDialog menteeOptions={menteeOptions} />
       </div>
 
       <Tabs defaultValue={pending.length > 0 ? "pending" : "upcoming"}>

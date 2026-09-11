@@ -53,5 +53,6 @@ export async function removeMentor(mentorId: string) {
   if (error) throw new Error("Não foi possível remover o mentor.");
 
   revalidatePath("/dashboard/equipe");
+  revalidatePath("/dashboard/controle");
   revalidatePath("/agendar");
 }

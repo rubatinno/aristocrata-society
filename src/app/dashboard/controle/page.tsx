@@ -5,7 +5,7 @@ import type { Booking, MentorDiscordCall, MentorPayment, Profile } from "@/lib/t
 import { ShieldAlert } from "lucide-react";
 
 export default async function ControlePage() {
-  const { profile } = await requireMentor();
+  const { profile, user } = await requireMentor();
 
   if (!profile.is_admin) {
     return (
@@ -59,9 +59,11 @@ export default async function ControlePage() {
     });
 
     // Chamadas em grupo no Discord contam junto — mesmo valor por chamada,
-    // mesmo corte por data de pagamento.
+    // mesmo corte por data de pagamento. Só as marcadas como realizadas: o
+    // mentor pode registrar uma chamada que não rolou, e essa não deve
+    // contar pra pagamento.
     const unpaidDiscordCallsList = mentorDiscordCalls.filter(
-      (c) => !lastPaidThrough || c.call_date > lastPaidThrough,
+      (c) => c.completed && (!lastPaidThrough || c.call_date > lastPaidThrough),
     );
 
     const unpaidIndividualCalls = unpaidBookings.length;
@@ -97,7 +99,7 @@ export default async function ControlePage() {
         </p>
       </div>
 
-      <ControleView mentors={mentorsWithPayments} />
+      <ControleView mentors={mentorsWithPayments} currentUserId={user.id} />
     </div>
   );
 }
