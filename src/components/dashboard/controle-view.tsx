@@ -12,14 +12,28 @@ import {
   deleteMentorPayment,
   setMentorRate,
 } from "@/app/dashboard/controle/actions";
-import type { MentorDiscordCall, MentorPayment, Profile } from "@/lib/types";
-import { formatFullDate } from "@/lib/format";
-import { ChevronDown, ChevronUp, Loader2, MessageCircle, Pencil, Plus, Trash2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import type { Booking, MentorDiscordCall, MentorPayment, Profile } from "@/lib/types";
+import { formatDateTime, formatFullDate } from "@/lib/format";
+import {
+  CalendarClock,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  Loader2,
+  Mail,
+  MessageCircle,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type MentorWithPayments = Profile & {
   payments: MentorPayment[];
   discordCalls: MentorDiscordCall[];
+  unpaidBookings: Booking[];
+  unpaidDiscordCallsList: MentorDiscordCall[];
   unpaidIndividualCalls: number;
   unpaidDiscordCalls: number;
   unpaidCalls: number;
@@ -79,6 +93,8 @@ function MentorPaymentCard({ mentor }: { mentor: MentorWithPayments }) {
   const [showDiscordHistory, setShowDiscordHistory] = useState(false);
   const [removingDiscordId, setRemovingDiscordId] = useState<string | null>(null);
   const [isRemovingDiscord, startRemovingDiscord] = useTransition();
+
+  const [showUnpaidDetail, setShowUnpaidDetail] = useState(false);
 
   function handleSaveRate() {
     const rate = rateInput.trim() === "" ? null : Number.parseFloat(rateInput);
@@ -195,16 +211,24 @@ function MentorPaymentCard({ mentor }: { mentor: MentorWithPayments }) {
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-4 border-t border-border pt-3 text-sm">
-        <span className="text-muted-foreground">
-          <span className="font-semibold text-foreground">{mentor.unpaidCalls}</span> chamada
-          {mentor.unpaidCalls === 1 ? "" : "s"} não paga{mentor.unpaidCalls === 1 ? "" : "s"}
-          {mentor.unpaidCalls > 0 && (
+        {mentor.unpaidCalls > 0 ? (
+          <button
+            type="button"
+            onClick={() => setShowUnpaidDetail(true)}
+            className="group flex items-center gap-1 text-muted-foreground hover:text-foreground"
+          >
+            <span className="font-semibold text-foreground">{mentor.unpaidCalls}</span> chamada
+            {mentor.unpaidCalls === 1 ? "" : "s"} não paga{mentor.unpaidCalls === 1 ? "" : "s"}
             <span className="text-xs">
-              {" "}
               ({mentor.unpaidIndividualCalls} individua{mentor.unpaidIndividualCalls === 1 ? "l" : "is"} + {mentor.unpaidDiscordCalls} Discord)
             </span>
-          )}
-        </span>
+            <ChevronRight className="size-3.5 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5" />
+          </button>
+        ) : (
+          <span className="text-muted-foreground">
+            <span className="font-semibold text-foreground">0</span> chamadas não pagas
+          </span>
+        )}
         {mentor.amountOwed !== null ? (
           <span
             className={cn(
@@ -416,6 +440,115 @@ function MentorPaymentCard({ mentor }: { mentor: MentorWithPayments }) {
           ))}
         </div>
       )}
+
+      <UnpaidCallsDialog
+        open={showUnpaidDetail}
+        onOpenChange={setShowUnpaidDetail}
+        mentor={mentor}
+      />
     </div>
+  );
+}
+
+type UnpaidEntry =
+  | { kind: "individual"; id: string; date: string; menteeName: string; menteeEmail: string }
+  | { kind: "discord"; id: string; date: string; quantity: number; notes: string | null };
+
+/**
+ * Lista detalhada de todas as chamadas não pagas — data, quem marcou (ou
+ * "Discord" pras chamadas em grupo) — pro fechamento do mês com o mentor.
+ * Ordenada cronologicamente, mais antiga primeiro, igual um extrato.
+ */
+function UnpaidCallsDialog({
+  open,
+  onOpenChange,
+  mentor,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  mentor: MentorWithPayments;
+}) {
+  const entries: UnpaidEntry[] = [
+    ...mentor.unpaidBookings.map((b) => ({
+      kind: "individual" as const,
+      id: b.id,
+      date: b.starts_at,
+      menteeName: b.mentee_name,
+      menteeEmail: b.mentee_email,
+    })),
+    ...mentor.unpaidDiscordCallsList.map((c) => ({
+      kind: "discord" as const,
+      id: c.id,
+      date: c.call_date,
+      quantity: c.quantity,
+      notes: c.notes,
+    })),
+  ].sort((a, b) => a.date.localeCompare(b.date));
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex max-h-[80vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
+        <DialogHeader className="shrink-0 border-b border-border p-4 pr-16">
+          <DialogTitle>Chamadas não pagas · {mentor.full_name || mentor.slug}</DialogTitle>
+          <p className="text-xs text-muted-foreground">
+            {mentor.lastPaidThrough
+              ? `Desde o pagamento até ${formatFullDate(new Date(`${mentor.lastPaidThrough}T12:00:00Z`), "UTC")}`
+              : "Nenhum pagamento registrado ainda — todas as chamadas concluídas aparecem aqui"}
+          </p>
+        </DialogHeader>
+
+        <div className="flex-1 space-y-1.5 overflow-y-auto p-4">
+          {entries.map((entry) =>
+            entry.kind === "individual" ? (
+              <div
+                key={`b-${entry.id}`}
+                className="flex items-center gap-3 rounded-xl border border-border/60 px-3 py-2 text-sm"
+              >
+                <CalendarClock className="size-4 shrink-0 text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-foreground">{entry.menteeName}</p>
+                  <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
+                    <Mail className="size-3 shrink-0" />
+                    {entry.menteeEmail}
+                  </p>
+                </div>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {formatDateTime(new Date(entry.date), "America/Sao_Paulo")}
+                </span>
+              </div>
+            ) : (
+              <div
+                key={`d-${entry.id}`}
+                className="flex items-center gap-3 rounded-xl border border-border/60 bg-muted/20 px-3 py-2 text-sm"
+              >
+                <MessageCircle className="size-4 shrink-0 text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-foreground">
+                    Chamada em grupo (Discord)
+                    {entry.quantity > 1 ? ` · ${entry.quantity} chamadas` : ""}
+                  </p>
+                  {entry.notes && <p className="truncate text-xs text-muted-foreground">{entry.notes}</p>}
+                </div>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {formatFullDate(new Date(`${entry.date}T12:00:00Z`), "UTC")}
+                </span>
+              </div>
+            ),
+          )}
+          {entries.length === 0 && (
+            <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma chamada não paga.</p>
+          )}
+        </div>
+
+        <div className="flex shrink-0 items-center justify-between border-t border-border p-4 text-sm">
+          <span className="text-muted-foreground">
+            {mentor.unpaidCalls} chamada{mentor.unpaidCalls === 1 ? "" : "s"} no total
+          </span>
+          {mentor.amountOwed !== null && (
+            <span className="font-semibold text-foreground">{formatCurrency(mentor.amountOwed)}</span>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

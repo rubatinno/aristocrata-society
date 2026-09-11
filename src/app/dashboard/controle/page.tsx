@@ -52,19 +52,23 @@ export default async function ControlePage() {
     // Já vem ordenado por paid_through desc — o primeiro é o pagamento mais recente.
     const lastPaidThrough = mentorPayments[0]?.paid_through ?? null;
 
-    const unpaidIndividualCalls = completedBookings.filter((b) => {
+    const unpaidBookings = completedBookings.filter((b) => {
       if (b.mentor_id !== mentor.id) return false;
       if (!lastPaidThrough) return true;
       return b.starts_at.slice(0, 10) > lastPaidThrough;
-    }).length;
+    });
 
     // Chamadas em grupo no Discord contam junto — mesmo valor por chamada,
-    // mesmo corte por data de pagamento. Soma `quantity`, não a quantidade
-    // de linhas — uma linha pode representar várias chamadas de uma vez
-    // (backfill de um período que não foi marcado dia a dia).
-    const unpaidDiscordCalls = mentorDiscordCalls
-      .filter((c) => !lastPaidThrough || c.call_date > lastPaidThrough)
-      .reduce((sum, c) => sum + c.quantity, 0);
+    // mesmo corte por data de pagamento.
+    const unpaidDiscordCallsList = mentorDiscordCalls.filter(
+      (c) => !lastPaidThrough || c.call_date > lastPaidThrough,
+    );
+
+    const unpaidIndividualCalls = unpaidBookings.length;
+    // Soma `quantity`, não a quantidade de linhas — uma linha pode
+    // representar várias chamadas de uma vez (backfill de um período que
+    // não foi marcado dia a dia).
+    const unpaidDiscordCalls = unpaidDiscordCallsList.reduce((sum, c) => sum + c.quantity, 0);
 
     const unpaidCalls = unpaidIndividualCalls + unpaidDiscordCalls;
     const amountOwed = mentor.rate_per_call ? unpaidCalls * mentor.rate_per_call : null;
@@ -73,6 +77,8 @@ export default async function ControlePage() {
       ...mentor,
       payments: mentorPayments,
       discordCalls: mentorDiscordCalls,
+      unpaidBookings,
+      unpaidDiscordCallsList,
       unpaidIndividualCalls,
       unpaidDiscordCalls,
       unpaidCalls,
