@@ -50,6 +50,21 @@ export function DashboardTopbar({
       </Button>
 
       <div className="flex items-center gap-2">
+        {isAdmin && (
+          <Button
+            type="button"
+            variant={mentorModeActive ? "default" : "outline"}
+            size="sm"
+            onClick={() => void (mentorModeActive ? exitMentorMode() : enterMentorMode())}
+            className="gap-1.5"
+          >
+            <Eye className="size-3.5" />
+            <span className="hidden sm:inline">
+              {mentorModeActive ? "Voltar ao modo Admin" : "Ver como Mentor"}
+            </span>
+            <span className="sm:hidden">{mentorModeActive ? "Modo Admin" : "Ver como Mentor"}</span>
+          </Button>
+        )}
         <ThemeToggle />
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
@@ -64,14 +79,6 @@ export function DashboardTopbar({
               <p className="truncate text-sm font-medium">{fullName || "Mentor"}</p>
               <p className="truncate text-xs text-muted-foreground">{email}</p>
             </div>
-            {isAdmin && (
-              <DropdownMenuItem
-                onClick={() => void (mentorModeActive ? exitMentorMode() : enterMentorMode())}
-              >
-                <Eye className="size-4" />
-                {mentorModeActive ? "Voltar ao modo Admin" : "Ver como Mentor"}
-              </DropdownMenuItem>
-            )}
             <DropdownMenuItem variant="destructive" onClick={() => void signOut()}>
               <LogOut className="size-4" />
               Sair
