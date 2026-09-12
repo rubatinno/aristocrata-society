@@ -6,9 +6,9 @@ import type { ApprovedMentee, Booking, Plan, Profile } from "@/lib/types";
 import { ShieldAlert } from "lucide-react";
 
 export default async function GestaoPage() {
-  const { profile } = await requireMentor();
+  const { profile, mentorModeActive } = await requireMentor();
 
-  if (!profile.is_admin) {
+  if (!profile.is_admin || mentorModeActive) {
     return (
       <div className="mx-auto flex max-w-md flex-col items-center gap-3 py-20 text-center">
         <ShieldAlert className="size-8 text-muted-foreground" />

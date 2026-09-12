@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { ApprovedMentee, Booking, MenteeLink, Plan } from "@/lib/types";
 
 export default async function MentoradosPage() {
-  const { supabase, profile } = await requireMentor();
+  const { supabase, profile, mentorModeActive } = await requireMentor();
 
   const [{ data: mentees }, { data: plans }, { data: links }] = await Promise.all([
     // Só quem foi aprovado como mentorado — mentores/admins também vivem em
@@ -85,7 +85,11 @@ export default async function MentoradosPage() {
         </p>
       </div>
 
-      <MenteesDirectory mentees={menteesWithDetails} plans={planList} isAdmin={profile.is_admin} />
+      <MenteesDirectory
+        mentees={menteesWithDetails}
+        plans={planList}
+        isAdmin={profile.is_admin && !mentorModeActive}
+      />
     </div>
   );
 }

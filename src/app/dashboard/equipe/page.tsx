@@ -7,9 +7,9 @@ import { ShieldAlert, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default async function EquipePage() {
-  const { supabase, profile } = await requireMentor();
+  const { supabase, profile, mentorModeActive } = await requireMentor();
 
-  if (!profile.is_admin) {
+  if (!profile.is_admin || mentorModeActive) {
     return (
       <div className="mx-auto flex max-w-md flex-col items-center gap-3 py-20 text-center">
         <ShieldAlert className="size-8 text-muted-foreground" />

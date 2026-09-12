@@ -29,9 +29,9 @@ export default async function ControleRelatorioPage({
   params: Promise<{ mentorId: string }>;
   searchParams: Promise<{ after?: string; before?: string }>;
 }) {
-  const { profile } = await requireMentor();
+  const { profile, mentorModeActive } = await requireMentor();
 
-  if (!profile.is_admin) {
+  if (!profile.is_admin || mentorModeActive) {
     return (
       <div className="mx-auto flex max-w-md flex-col items-center gap-3 py-20 text-center">
         <ShieldAlert className="size-8 text-neutral-400" />

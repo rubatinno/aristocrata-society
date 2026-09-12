@@ -5,9 +5,9 @@ import type { Booking, MentorDiscordCall, MentorPayment, Profile } from "@/lib/t
 import { ShieldAlert } from "lucide-react";
 
 export default async function ControlePage() {
-  const { profile, user } = await requireMentor();
+  const { profile, user, mentorModeActive } = await requireMentor();
 
-  if (!profile.is_admin) {
+  if (!profile.is_admin || mentorModeActive) {
     return (
       <div className="mx-auto flex max-w-md flex-col items-center gap-3 py-20 text-center">
         <ShieldAlert className="size-8 text-muted-foreground" />
