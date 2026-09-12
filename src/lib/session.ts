@@ -1,8 +1,14 @@
 import "server-only";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getTrustedUser } from "@/lib/auth-header";
 import type { Profile } from "@/lib/types";
+
+/** Cookie que liga o "Modo Mentor" do admin — mesma conta, mesmos dados, só
+ * esconde a navegação de admin. Não é impersonar outra pessoa, por isso não
+ * precisa de nenhum cuidado extra nas actions de escrita. */
+export const MENTOR_MODE_COOKIE = "admin_mentor_mode";
 
 /** Garante um usuário autenticado com perfil de mentor já criado. */
 export async function requireMentor() {
@@ -23,7 +29,10 @@ export async function requireMentor() {
     redirect("/sem-acesso");
   }
 
-  return { supabase, user, profile };
+  const cookieStore = await cookies();
+  const mentorModeActive = profile.is_admin && cookieStore.get(MENTOR_MODE_COOKIE)?.value === "1";
+
+  return { supabase, user, profile, mentorModeActive };
 }
 
 /** Perfil "incompleto" = ainda não passou pelo onboarding. */

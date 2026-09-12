@@ -62,9 +62,15 @@ function NavIcon({ link }: { link: NavLink }) {
   return null;
 }
 
-export function DashboardSidebar({ isAdmin }: { isAdmin: boolean }) {
+export function DashboardSidebar({
+  isAdmin,
+  mentorModeActive = false,
+}: {
+  isAdmin: boolean;
+  mentorModeActive?: boolean;
+}) {
   const pathname = usePathname();
-  const links = isAdmin ? [...baseLinks, ...adminLinks] : baseLinks;
+  const links = isAdmin && !mentorModeActive ? [...baseLinks, ...adminLinks] : baseLinks;
 
   return (
     <aside className="hidden w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground lg:flex">

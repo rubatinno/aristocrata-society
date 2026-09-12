@@ -10,8 +10,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { signOut } from "@/app/dashboard/actions";
+import { enterMentorMode, exitMentorMode } from "@/app/dashboard/mentor-mode-actions";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Check, Copy, LogOut } from "lucide-react";
+import { Check, Copy, Eye, LogOut } from "lucide-react";
 
 function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -23,10 +24,14 @@ export function DashboardTopbar({
   fullName,
   email,
   bookingUrl,
+  isAdmin = false,
+  mentorModeActive = false,
 }: {
   fullName: string;
   email: string;
   bookingUrl: string;
+  isAdmin?: boolean;
+  mentorModeActive?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -59,6 +64,14 @@ export function DashboardTopbar({
               <p className="truncate text-sm font-medium">{fullName || "Mentor"}</p>
               <p className="truncate text-xs text-muted-foreground">{email}</p>
             </div>
+            {isAdmin && (
+              <DropdownMenuItem
+                onClick={() => void (mentorModeActive ? exitMentorMode() : enterMentorMode())}
+              >
+                <Eye className="size-4" />
+                {mentorModeActive ? "Voltar ao modo Admin" : "Ver como Mentor"}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem variant="destructive" onClick={() => void signOut()}>
               <LogOut className="size-4" />
               Sair
