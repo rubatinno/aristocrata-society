@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,9 +13,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createManualBooking, type MenteeOption } from "@/app/dashboard/agenda/actions";
-import { CalendarPlus, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { CalendarPlus, Loader2, Search } from "lucide-react";
 
 function todayKey() {
   const d = new Date();
@@ -33,6 +33,7 @@ function nowTime() {
 export function ManualBookingDialog({ menteeOptions }: { menteeOptions: MenteeOption[] }) {
   const [open, setOpen] = useState(false);
   const [menteeId, setMenteeId] = useState<string | null>(null);
+  const [menteeQuery, setMenteeQuery] = useState("");
   const [date, setDate] = useState(todayKey());
   const [time, setTime] = useState(nowTime());
   const [duration, setDuration] = useState("60");
@@ -41,10 +42,19 @@ export function ManualBookingDialog({ menteeOptions }: { menteeOptions: MenteeOp
   const [error, setError] = useState<string | null>(null);
   const [isSaving, startSaving] = useTransition();
 
-  const menteeItems = Object.fromEntries(menteeOptions.map((m) => [m.id, `${m.fullName} · ${m.email}`]));
+  const selectedMentee = menteeOptions.find((m) => m.id === menteeId) ?? null;
+
+  const filteredMentees = useMemo(() => {
+    const query = menteeQuery.trim().toLowerCase();
+    if (!query) return menteeOptions;
+    return menteeOptions.filter(
+      (m) => m.fullName.toLowerCase().includes(query) || m.email.toLowerCase().includes(query),
+    );
+  }, [menteeOptions, menteeQuery]);
 
   function resetForm() {
     setMenteeId(null);
+    setMenteeQuery("");
     setDate(todayKey());
     setTime(nowTime());
     setDuration("60");
@@ -109,22 +119,46 @@ export function ManualBookingDialog({ menteeOptions }: { menteeOptions: MenteeOp
               {menteeOptions.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Nenhum mentorado aprovado ainda.</p>
               ) : (
-                <Select
-                  value={menteeId ?? undefined}
-                  onValueChange={(v) => setMenteeId(v)}
-                  items={menteeItems}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione um mentorado" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {menteeOptions.map((m) => (
-                      <SelectItem key={m.id} value={m.id}>
-                        {m.fullName} · {m.email}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="space-y-1.5">
+                  <div className="relative">
+                    <Search className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={menteeQuery}
+                      onChange={(e) => setMenteeQuery(e.target.value)}
+                      placeholder="Buscar por nome ou e-mail"
+                      className="pl-8"
+                    />
+                  </div>
+                  <div className="max-h-44 space-y-0.5 overflow-y-auto rounded-lg border border-border p-1">
+                    {filteredMentees.length === 0 ? (
+                      <p className="px-2 py-3 text-center text-xs text-muted-foreground">
+                        Nenhum mentorado encontrado.
+                      </p>
+                    ) : (
+                      filteredMentees.map((m) => (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => setMenteeId(m.id)}
+                          className={cn(
+                            "flex w-full flex-col rounded-md px-2 py-1.5 text-left transition-colors",
+                            menteeId === m.id
+                              ? "bg-primary/10 text-primary"
+                              : "hover:bg-accent hover:text-accent-foreground",
+                          )}
+                        >
+                          <span className="truncate text-sm font-medium">{m.fullName}</span>
+                          <span className="truncate text-xs text-muted-foreground">{m.email}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                  {selectedMentee && (
+                    <p className="truncate text-xs text-muted-foreground">
+                      Selecionado: <span className="font-medium text-foreground">{selectedMentee.fullName}</span>
+                    </p>
+                  )}
+                </div>
               )}
             </div>
 
