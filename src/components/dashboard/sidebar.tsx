@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
+  BookOpen,
   CalendarDays,
   Clock,
   Settings,
@@ -36,6 +37,7 @@ const baseLinks: NavLink[] = [
 ];
 
 const adminLinks: NavLink[] = [
+  { href: "/dashboard/aulas", label: "Aulas", icon: BookOpen },
   { href: "/dashboard/gestao", label: "Gestão", icon: LineChart },
   { href: "/dashboard/aprovacoes", label: "Aprovações", icon: ShieldCheck },
   { href: "/dashboard/equipe", label: "Equipe", icon: UsersRound },

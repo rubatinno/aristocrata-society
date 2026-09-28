@@ -179,6 +179,58 @@ export type MenteeProductCreative = {
   updated_at: string;
 };
 
+/** Central de Aulas — módulo (ex: "Fundamentos") com aulas dentro, 100%
+ * personalizável pelo admin. Sem trava por plano: todo mentorado vê tudo. */
+export type CourseModule = {
+  id: string;
+  title: string;
+  description: string | null;
+  cover_image_url: string | null;
+  position: number;
+  unlock_after_days: number | null; // liberado só X dias depois do registro; null = na hora
+  created_at: string;
+  updated_at: string;
+};
+
+export type CourseLesson = {
+  id: string;
+  module_id: string;
+  title: string;
+  video_url: string | null;
+  duration_label: string | null; // ex: "18:24", digitado à mão
+  position: number;
+  unlock_after_days: number | null; // liberado só X dias depois do registro; null = na hora
+  created_at: string;
+  updated_at: string;
+};
+
+export type CourseLessonMaterial = {
+  id: string;
+  lesson_id: string;
+  title: string;
+  file_url: string;
+  position: number;
+  created_at: string;
+};
+
+export type MenteeLessonProgress = {
+  mentee_id: string;
+  lesson_id: string;
+  completed: boolean;
+  completed_at: string | null;
+  bookmarked: boolean;
+  updated_at: string;
+};
+
+/** Linha única (id fixo = 1) — trava global das Aulas enquanto o conteúdo
+ * ainda está sendo gravado. */
+export type AppSettings = {
+  id: number;
+  aulas_locked: boolean;
+  aulas_locked_message: string;
+  updated_at: string;
+};
+
 export type GoalKind = "tarefa" | "meta";
 
 export type MenteeGoal = {
@@ -374,6 +426,57 @@ export type Database = {
           test_date?: string | null;
         };
         Update: Partial<MenteeProductCreative>;
+        Relationships: [];
+      };
+      course_modules: {
+        Row: CourseModule;
+        Insert: Omit<CourseModule, "id" | "created_at" | "updated_at" | "position" | "unlock_after_days"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+          position?: number;
+          unlock_after_days?: number | null;
+        };
+        Update: Partial<CourseModule>;
+        Relationships: [];
+      };
+      course_lessons: {
+        Row: CourseLesson;
+        Insert: Omit<CourseLesson, "id" | "created_at" | "updated_at" | "position" | "unlock_after_days"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+          position?: number;
+          unlock_after_days?: number | null;
+        };
+        Update: Partial<CourseLesson>;
+        Relationships: [];
+      };
+      course_lesson_materials: {
+        Row: CourseLessonMaterial;
+        Insert: Omit<CourseLessonMaterial, "id" | "created_at" | "position"> & {
+          id?: string;
+          created_at?: string;
+          position?: number;
+        };
+        Update: Partial<CourseLessonMaterial>;
+        Relationships: [];
+      };
+      mentee_lesson_progress: {
+        Row: MenteeLessonProgress;
+        Insert: Omit<MenteeLessonProgress, "completed" | "completed_at" | "bookmarked" | "updated_at"> & {
+          completed?: boolean;
+          completed_at?: string | null;
+          bookmarked?: boolean;
+          updated_at?: string;
+        };
+        Update: Partial<MenteeLessonProgress>;
+        Relationships: [];
+      };
+      app_settings: {
+        Row: AppSettings;
+        Insert: Partial<AppSettings> & { id: number };
+        Update: Partial<AppSettings>;
         Relationships: [];
       };
       mentor_payments: {

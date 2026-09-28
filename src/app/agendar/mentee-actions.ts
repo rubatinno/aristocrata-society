@@ -152,7 +152,7 @@ export async function getMenteeSession(): Promise<MenteeSession | null> {
 /** Admin entra no painel de um mentorado pra ver o que ele vê — sem senha,
  * sem trocar de sessão de verdade (só um cookie que faz getMenteeSession
  * "olhar" pros dados desse mentorado enquanto durar). */
-export async function startViewAsMentee(menteeUserId: string) {
+export async function startViewAsMentee(menteeUserId: string, redirectTo = "/agendar") {
   const supabase = await createClient();
 
   const {
@@ -177,7 +177,7 @@ export async function startViewAsMentee(menteeUserId: string) {
     path: "/",
   });
 
-  redirect("/agendar");
+  redirect(redirectTo);
 }
 
 export async function stopViewAsMentee() {

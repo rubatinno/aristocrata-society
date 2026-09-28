@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  BookOpen,
   CalendarDays,
   History,
   Link as LinkIcon,
@@ -21,6 +22,7 @@ type NavLink = { href: string; label: string; icon?: LucideIcon; iconSrc?: strin
 
 const links: NavLink[] = [
   { href: "/agendar", label: "Agendamentos", icon: CalendarDays },
+  { href: "/agendar/aulas", label: "Aulas", icon: BookOpen },
   { href: "/agendar/links", label: "Links importantes", icon: LinkIcon },
   { href: "/agendar/anotacoes", label: "Anotações", icon: NotebookPen },
   { href: "/agendar/progresso", label: "Progresso", icon: Target },
