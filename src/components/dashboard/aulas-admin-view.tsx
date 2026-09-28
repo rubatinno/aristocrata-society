@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -39,6 +40,7 @@ import {
   ChevronDown,
   ChevronRight,
   FileText,
+  Lock,
   Loader2,
   Paperclip,
   Pencil,
@@ -47,6 +49,8 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
+
+const DEFAULT_UNLOCK_DAYS = 7;
 
 export function AulasAdminView({ initialModules }: { initialModules: AdminModuleWithLessons[] }) {
   const [modules, setModules] = useState(initialModules);
@@ -162,12 +166,16 @@ function ModuleDialog({
   const [title, setTitle] = useState(initial?.title ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [coverImageUrl, setCoverImageUrl] = useState(initial?.coverImageUrl ?? "");
+  const [isLocked, setIsLocked] = useState((initial?.unlockAfterDays ?? null) !== null);
+  const [unlockDays, setUnlockDays] = useState(initial?.unlockAfterDays ?? DEFAULT_UNLOCK_DAYS);
   const [isSaving, setIsSaving] = useState(false);
 
   function handleSubmit() {
     if (!title.trim()) return;
     setIsSaving(true);
-    onSave({ title, description, coverImageUrl }).finally(() => setIsSaving(false));
+    onSave({ title, description, coverImageUrl, unlockAfterDays: isLocked ? unlockDays : null }).finally(() =>
+      setIsSaving(false),
+    );
   }
 
   return (
@@ -179,6 +187,8 @@ function ModuleDialog({
           setTitle(initial?.title ?? "");
           setDescription(initial?.description ?? "");
           setCoverImageUrl(initial?.coverImageUrl ?? "");
+          setIsLocked((initial?.unlockAfterDays ?? null) !== null);
+          setUnlockDays(initial?.unlockAfterDays ?? DEFAULT_UNLOCK_DAYS);
         }
       }}
     >
@@ -216,6 +226,28 @@ function ModuleDialog({
               onChange={(e) => setCoverImageUrl(e.target.value)}
               placeholder="https://..."
             />
+          </div>
+          <div className="space-y-2 rounded-xl border border-border/60 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <Label className="flex items-center gap-1.5">
+                <Lock className="size-3.5 text-muted-foreground" /> Bloquear módulo por dias
+              </Label>
+              <Switch checked={isLocked} onCheckedChange={setIsLocked} size="sm" />
+            </div>
+            {isLocked && (
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min={1}
+                  value={unlockDays}
+                  onChange={(e) => setUnlockDays(Math.max(1, Number(e.target.value) || 1))}
+                  className="w-24"
+                />
+                <p className="text-xs text-muted-foreground">
+                  dias após o registro do mentorado (todas as aulas dele ficam travadas até lá)
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -264,6 +296,7 @@ function ModuleCard({
       title: input.title,
       description: input.description || null,
       cover_image_url: input.coverImageUrl || null,
+      unlock_after_days: input.unlockAfterDays,
     });
     try {
       await updateModule(module.id, input);
@@ -325,6 +358,14 @@ function ModuleCard({
             {String(index + 1).padStart(2, "0")}
           </span>
           <span className="min-w-0 flex-1 truncate text-sm font-semibold">{module.title}</span>
+          {module.unlock_after_days !== null && (
+            <span
+              className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground"
+              title={`Libera ${module.unlock_after_days} dia(s) após o registro do mentorado`}
+            >
+              <Lock className="size-3" /> {module.unlock_after_days}d
+            </span>
+          )}
           <span className="shrink-0 text-xs text-muted-foreground">
             {module.lessons.length} aula{module.lessons.length === 1 ? "" : "s"}
           </span>
@@ -383,6 +424,7 @@ function ModuleCard({
           title: module.title,
           description: module.description ?? "",
           coverImageUrl: module.cover_image_url ?? "",
+          unlockAfterDays: module.unlock_after_days,
         }}
       />
 
@@ -434,12 +476,19 @@ function LessonDialog({
   const [title, setTitle] = useState(initial?.title ?? "");
   const [videoUrl, setVideoUrl] = useState(initial?.videoUrl ?? "");
   const [durationLabel, setDurationLabel] = useState(initial?.durationLabel ?? "");
+  const [isLocked, setIsLocked] = useState((initial?.unlockAfterDays ?? null) !== null);
+  const [unlockDays, setUnlockDays] = useState(initial?.unlockAfterDays ?? DEFAULT_UNLOCK_DAYS);
   const [isSaving, setIsSaving] = useState(false);
 
   function handleSubmit() {
     if (!title.trim()) return;
     setIsSaving(true);
-    onSave({ title, videoUrl: extractEmbedSrc(videoUrl), durationLabel }).finally(() => setIsSaving(false));
+    onSave({
+      title,
+      videoUrl: extractEmbedSrc(videoUrl),
+      durationLabel,
+      unlockAfterDays: isLocked ? unlockDays : null,
+    }).finally(() => setIsSaving(false));
   }
 
   return (
@@ -451,6 +500,8 @@ function LessonDialog({
           setTitle(initial?.title ?? "");
           setVideoUrl(initial?.videoUrl ?? "");
           setDurationLabel(initial?.durationLabel ?? "");
+          setIsLocked((initial?.unlockAfterDays ?? null) !== null);
+          setUnlockDays(initial?.unlockAfterDays ?? DEFAULT_UNLOCK_DAYS);
         }
       }}
     >
@@ -491,6 +542,26 @@ function LessonDialog({
               onChange={(e) => setDurationLabel(e.target.value)}
               placeholder="Ex: 18:24"
             />
+          </div>
+          <div className="space-y-2 rounded-xl border border-border/60 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <Label className="flex items-center gap-1.5">
+                <Lock className="size-3.5 text-muted-foreground" /> Bloquear aula por dias
+              </Label>
+              <Switch checked={isLocked} onCheckedChange={setIsLocked} size="sm" />
+            </div>
+            {isLocked && (
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min={1}
+                  value={unlockDays}
+                  onChange={(e) => setUnlockDays(Math.max(1, Number(e.target.value) || 1))}
+                  className="w-24"
+                />
+                <p className="text-xs text-muted-foreground">dias após o registro do mentorado</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -534,6 +605,7 @@ function LessonRow({
       title: input.title,
       video_url: input.videoUrl || null,
       duration_label: input.durationLabel || null,
+      unlock_after_days: input.unlockAfterDays,
     });
     try {
       await updateLesson(lesson.id, input);
@@ -559,6 +631,14 @@ function LessonRow({
       </span>
       <span className="min-w-0 flex-1 truncate font-medium">{lesson.title}</span>
       {!lesson.video_url && <span className="shrink-0 text-xs text-muted-foreground">sem vídeo</span>}
+      {lesson.unlock_after_days !== null && (
+        <span
+          className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground"
+          title={`Libera ${lesson.unlock_after_days} dia(s) após o registro do mentorado`}
+        >
+          <Lock className="size-3" /> {lesson.unlock_after_days}d
+        </span>
+      )}
       {lesson.duration_label && (
         <span className="shrink-0 text-xs text-muted-foreground">{lesson.duration_label}</span>
       )}
@@ -625,6 +705,7 @@ function LessonRow({
           title: lesson.title,
           videoUrl: lesson.video_url ?? "",
           durationLabel: lesson.duration_label ?? "",
+          unlockAfterDays: lesson.unlock_after_days,
         }}
       />
 

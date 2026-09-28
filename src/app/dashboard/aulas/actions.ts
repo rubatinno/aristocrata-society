@@ -53,6 +53,7 @@ export interface ModuleInput {
   title: string;
   description: string;
   coverImageUrl: string;
+  unlockAfterDays: number | null;
 }
 
 export async function createModule(input: ModuleInput) {
@@ -73,6 +74,7 @@ export async function createModule(input: ModuleInput) {
       title: input.title.trim(),
       description: input.description.trim() || null,
       cover_image_url: input.coverImageUrl.trim() || null,
+      unlock_after_days: input.unlockAfterDays,
       position: (last?.position ?? -1) + 1,
     })
     .select("*")
@@ -91,6 +93,7 @@ export async function updateModule(id: string, patch: Partial<ModuleInput>) {
   if (patch.title !== undefined) dbPatch.title = patch.title.trim() || "Novo módulo";
   if (patch.description !== undefined) dbPatch.description = patch.description.trim() || null;
   if (patch.coverImageUrl !== undefined) dbPatch.cover_image_url = patch.coverImageUrl.trim() || null;
+  if (patch.unlockAfterDays !== undefined) dbPatch.unlock_after_days = patch.unlockAfterDays;
 
   const { error } = await supabase.from("course_modules").update(dbPatch).eq("id", id);
   if (error) throw new Error("Não foi possível salvar o módulo.");
@@ -135,6 +138,7 @@ export interface LessonInput {
   title: string;
   videoUrl: string;
   durationLabel: string;
+  unlockAfterDays: number | null;
 }
 
 export async function createLesson(moduleId: string, input: LessonInput) {
@@ -157,6 +161,7 @@ export async function createLesson(moduleId: string, input: LessonInput) {
       title: input.title.trim(),
       video_url: input.videoUrl.trim() || null,
       duration_label: input.durationLabel.trim() || null,
+      unlock_after_days: input.unlockAfterDays,
       position: (last?.position ?? -1) + 1,
     })
     .select("*")
@@ -175,6 +180,7 @@ export async function updateLesson(id: string, patch: Partial<LessonInput>) {
   if (patch.title !== undefined) dbPatch.title = patch.title.trim() || "Nova aula";
   if (patch.videoUrl !== undefined) dbPatch.video_url = patch.videoUrl.trim() || null;
   if (patch.durationLabel !== undefined) dbPatch.duration_label = patch.durationLabel.trim() || null;
+  if (patch.unlockAfterDays !== undefined) dbPatch.unlock_after_days = patch.unlockAfterDays;
 
   const { error } = await supabase.from("course_lessons").update(dbPatch).eq("id", id);
   if (error) throw new Error("Não foi possível salvar a aula.");

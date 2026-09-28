@@ -2,7 +2,8 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import type { ModuleWithLessons } from "@/app/agendar/aulas/actions";
+import type { LessonWithProgress, ModuleWithLessons } from "@/app/agendar/aulas/actions";
+import { daysUntil } from "@/lib/drip";
 import { cn } from "@/lib/utils";
 import {
   BadgeCheck,
@@ -10,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CirclePlay,
+  Lock,
   PlayCircle,
   Search,
 } from "lucide-react";
@@ -126,6 +128,11 @@ export function AulasWorkspace({ modules }: { modules: ModuleWithLessons[] }) {
                     <div className="absolute inset-0 bg-gradient-to-br from-muted to-card" />
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/30 to-transparent" />
+                  {module.locked && (
+                    <span className="absolute top-3 right-3 flex items-center gap-1 rounded-full bg-background/90 px-2 py-1 text-xs font-medium">
+                      <Lock className="size-3" /> {daysUntil(new Date(module.unlocksAt!))}d
+                    </span>
+                  )}
                   <span className="relative text-xs font-semibold text-muted-foreground">
                     {String(index + 1).padStart(2, "0")}
                   </span>
@@ -148,7 +155,7 @@ export function AulasWorkspace({ modules }: { modules: ModuleWithLessons[] }) {
 
 function ModuleDetail({ module, index }: { module: ModuleWithLessons; index: number }) {
   const { total, completed, percent } = moduleProgress(module);
-  const nextLesson = module.lessons.find((l) => !l.completed) ?? module.lessons[0];
+  const nextLesson = module.lessons.find((l) => !l.completed && !l.locked) ?? module.lessons.find((l) => !l.locked);
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
@@ -182,14 +189,22 @@ function ModuleDetail({ module, index }: { module: ModuleWithLessons; index: num
           {module.description && (
             <p className="max-w-md text-sm text-muted-foreground">{module.description}</p>
           )}
-          {nextLesson && (
-            <Link
-              href={`/agendar/aulas/${module.id}/${nextLesson.id}`}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-            >
-              <CirclePlay className="size-4" />
-              {completed > 0 ? "Continuar assistindo" : "Começar"}
-            </Link>
+          {module.locked ? (
+            <span className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background/80 px-4 py-2 text-sm font-semibold text-muted-foreground">
+              <Lock className="size-4" />
+              Libera em {daysUntil(new Date(module.unlocksAt!))} dia
+              {daysUntil(new Date(module.unlocksAt!)) === 1 ? "" : "s"}
+            </span>
+          ) : (
+            nextLesson && (
+              <Link
+                href={`/agendar/aulas/${module.id}/${nextLesson.id}`}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                <CirclePlay className="size-4" />
+                {completed > 0 ? "Continuar assistindo" : "Começar"}
+              </Link>
+            )
           )}
         </div>
       </div>
@@ -198,28 +213,53 @@ function ModuleDetail({ module, index }: { module: ModuleWithLessons; index: num
         {module.lessons.length === 0 ? (
           <p className="p-4 text-center text-sm text-muted-foreground">Nenhuma aula nesse módulo ainda.</p>
         ) : (
-          module.lessons.map((lesson, i) => (
-            <Link
-              key={lesson.id}
-              href={`/agendar/aulas/${module.id}/${lesson.id}`}
-              className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-accent"
-            >
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
-                {i + 1}
-              </span>
-              <span className="min-w-0 flex-1 truncate text-sm font-medium">{lesson.title}</span>
-              {lesson.duration_label && (
-                <span className="shrink-0 text-xs text-muted-foreground">{lesson.duration_label}</span>
-              )}
-              {lesson.completed ? (
-                <BadgeCheck className="size-4 shrink-0 text-success" />
-              ) : (
-                <PlayCircle className="size-4 shrink-0 text-muted-foreground" />
-              )}
-            </Link>
-          ))
+          module.lessons.map((lesson, i) => <LessonListRow key={lesson.id} lesson={lesson} moduleId={module.id} index={i} />)
         )}
       </div>
     </div>
+  );
+}
+
+function LessonListRow({
+  lesson,
+  moduleId,
+  index,
+}: {
+  lesson: LessonWithProgress;
+  moduleId: string;
+  index: number;
+}) {
+  if (lesson.locked) {
+    const days = daysUntil(new Date(lesson.unlocksAt!));
+    return (
+      <div className="flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2.5 opacity-60">
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
+          {index + 1}
+        </span>
+        <span className="min-w-0 flex-1 truncate text-sm font-medium">{lesson.title}</span>
+        <span className="shrink-0 text-xs text-muted-foreground">
+          Libera em {days} dia{days === 1 ? "" : "s"}
+        </span>
+        <Lock className="size-4 shrink-0 text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <Link
+      href={`/agendar/aulas/${moduleId}/${lesson.id}`}
+      className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-accent"
+    >
+      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
+        {index + 1}
+      </span>
+      <span className="min-w-0 flex-1 truncate text-sm font-medium">{lesson.title}</span>
+      {lesson.duration_label && <span className="shrink-0 text-xs text-muted-foreground">{lesson.duration_label}</span>}
+      {lesson.completed ? (
+        <BadgeCheck className="size-4 shrink-0 text-success" />
+      ) : (
+        <PlayCircle className="size-4 shrink-0 text-muted-foreground" />
+      )}
+    </Link>
   );
 }

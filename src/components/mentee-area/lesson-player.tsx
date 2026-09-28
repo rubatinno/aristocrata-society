@@ -7,8 +7,9 @@ import { toggleLessonBookmark, toggleLessonCompleted } from "@/app/agendar/aulas
 import type { LessonWithProgress, ModuleWithLessons } from "@/app/agendar/aulas/actions";
 import { VideoPlayer } from "@/components/mentee-area/video-player";
 import { Button } from "@/components/ui/button";
+import { daysUntil } from "@/lib/drip";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, BadgeCheck, Bookmark, Check, Download, FileText } from "lucide-react";
+import { ArrowLeft, BadgeCheck, Bookmark, Check, Download, FileText, Lock } from "lucide-react";
 
 export function LessonPlayer({
   module,
@@ -81,30 +82,46 @@ export function LessonPlayer({
             )}
           </div>
           <div className="flex-1 space-y-1 overflow-y-auto p-2">
-            {module.lessons.map((l, i) => (
-              <Link
-                key={l.id}
-                href={`/agendar/aulas/${module.id}/${l.id}`}
-                className={cn(
-                  "flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors",
-                  l.id === lesson.id ? "bg-primary/10 text-primary" : "hover:bg-accent",
-                )}
-              >
-                <span
+            {module.lessons.map((l, i) =>
+              l.locked ? (
+                <div
+                  key={l.id}
+                  className="flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2.5 opacity-60"
+                >
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
+                    {i + 1}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{l.title}</span>
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {daysUntil(new Date(l.unlocksAt!))}d
+                  </span>
+                  <Lock className="size-4 shrink-0 text-muted-foreground" />
+                </div>
+              ) : (
+                <Link
+                  key={l.id}
+                  href={`/agendar/aulas/${module.id}/${l.id}`}
                   className={cn(
-                    "flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
-                    l.id === lesson.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
+                    "flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors",
+                    l.id === lesson.id ? "bg-primary/10 text-primary" : "hover:bg-accent",
                   )}
                 >
-                  {i + 1}
-                </span>
-                <span className="min-w-0 flex-1 truncate text-sm font-medium">{l.title}</span>
-                {l.duration_label && (
-                  <span className="shrink-0 text-xs text-muted-foreground">{l.duration_label}</span>
-                )}
-                {l.completed && <BadgeCheck className="size-4 shrink-0 text-success" />}
-              </Link>
-            ))}
+                  <span
+                    className={cn(
+                      "flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
+                      l.id === lesson.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {i + 1}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{l.title}</span>
+                  {l.duration_label && (
+                    <span className="shrink-0 text-xs text-muted-foreground">{l.duration_label}</span>
+                  )}
+                  {l.completed && <BadgeCheck className="size-4 shrink-0 text-success" />}
+                </Link>
+              ),
+            )}
           </div>
         </div>
       </div>

@@ -5,6 +5,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { SupabaseSetupNotice } from "@/components/setup-notice";
 import { LessonPlayer } from "@/components/mentee-area/lesson-player";
 import { AulasLockedNotice } from "@/components/mentee-area/aulas-locked-notice";
+import { daysUntil } from "@/lib/drip";
 
 export default async function MenteeLessonPage({
   params,
@@ -36,6 +37,17 @@ export default async function MenteeLessonPage({
 
   if (!courseModule || !lesson) {
     notFound();
+  }
+
+  if (lesson.locked) {
+    const days = daysUntil(new Date(lesson.unlocksAt!));
+    return (
+      <div className="px-4 py-6 sm:px-6">
+        <AulasLockedNotice
+          message={`Esta aula libera em ${days} dia${days === 1 ? "" : "s"}.`}
+        />
+      </div>
+    );
   }
 
   return (
