@@ -19,9 +19,13 @@ export default async function ControlePage() {
 
   const admin = createAdminClient();
 
+  // Controle de pagamento só acompanha esses dois mentores, a pedido do
+  // admin — os demais perfis (sócios, contas de teste) ficam de fora.
+  const CONTROLE_MENTOR_IDS = ["f7fe3dab-22fe-4645-8c49-2d2a1732319a", "e9f09881-3a3a-4a2e-9305-535e2d996b07"];
+
   const [{ data: mentors }, { data: payments }, { data: bookings }, { data: discordCalls }] =
     await Promise.all([
-      admin.from("profiles").select("*").order("full_name"),
+      admin.from("profiles").select("*").in("id", CONTROLE_MENTOR_IDS).order("full_name"),
       admin.from("mentor_payments").select("*").order("paid_through", { ascending: false }),
       admin.from("bookings").select("*").eq("status", "concluida"),
       admin.from("mentor_discord_calls").select("*").order("call_date", { ascending: false }),
