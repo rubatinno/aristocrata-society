@@ -265,16 +265,20 @@ export function ProdutosWorkspace({
                 return (
                   <div
                     key={product.id}
-                    className="group flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-colors hover:border-primary/40"
+                    className="group relative flex flex-col gap-3 overflow-hidden rounded-2xl border border-border bg-card p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-lg hover:shadow-accent/10"
                   >
-                    <div className="flex items-start justify-between gap-2">
+                    <div
+                      aria-hidden
+                      className="pointer-events-none absolute -top-10 -right-10 size-32 rounded-full bg-accent/10 blur-2xl transition-opacity group-hover:opacity-80"
+                    />
+                    <div className="relative flex items-start justify-between gap-2">
                       <button
                         type="button"
                         onClick={() => setSelectedId(product.id)}
-                        className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                        className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
                       >
-                        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                          <Package className="size-4" />
+                        <span className="relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary/30 via-primary/10 to-transparent ring-1 ring-primary/30 shadow-sm">
+                          <Package className="size-4 text-primary drop-shadow-sm" />
                         </span>
                         {renamingId === product.id ? (
                           <Input
