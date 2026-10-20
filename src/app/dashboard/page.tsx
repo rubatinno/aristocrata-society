@@ -19,7 +19,7 @@ export default async function DashboardOverviewPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <h1 className="font-heading text-3xl font-semibold tracking-tight">
           Olá, {profile.full_name.split(" ")[0]}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">

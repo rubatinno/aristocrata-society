@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
+import { DM_Sans, Geist_Mono, Cormorant_Garamond } from "next/font/google";
 import Script from "next/script";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider, THEME_BOOTSTRAP_SCRIPT } from "@/components/theme-provider";
 import "./globals.css";
 
-const geistSans = Geist({
+const dmSans = DM_Sans({
   variable: "--font-geist-sans",
   subsets: ["latin"],
 });
@@ -15,8 +15,9 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const playfairDisplay = Playfair_Display({
+const cormorantGaramond = Cormorant_Garamond({
   variable: "--font-playfair",
+  weight: ["500", "600", "700"],
   subsets: ["latin"],
 });
 
@@ -34,7 +35,7 @@ export default function RootLayout({
   return (
     <html
       lang="pt-BR"
-      className={`${geistSans.variable} ${geistMono.variable} ${playfairDisplay.variable} dark h-full antialiased`}
+      className={`${dmSans.variable} ${geistMono.variable} ${cormorantGaramond.variable} dark h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">

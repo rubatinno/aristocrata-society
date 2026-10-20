@@ -78,7 +78,7 @@ export default async function MentoradosPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Mentorados</h1>
+        <h1 className="font-heading text-3xl font-semibold tracking-tight">Mentorados</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Todos os mentorados aprovados na Aristocrata Society. Guarde links de documentos e
           materiais importantes de cada um.

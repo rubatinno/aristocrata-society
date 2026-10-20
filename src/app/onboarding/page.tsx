@@ -29,7 +29,7 @@ export default async function OnboardingPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 px-6 py-12">
       <div className="w-full max-w-md rounded-3xl border border-border bg-card p-6 shadow-sm sm:p-8">
-        <h1 className="text-lg font-semibold">Vamos configurar sua agenda</h1>
+        <h1 className="font-heading text-2xl font-semibold">Vamos configurar sua agenda</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Leva menos de um minuto. Você pode ajustar tudo depois.
         </p>

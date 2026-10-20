@@ -31,7 +31,7 @@ export default async function SemAcessoPage() {
       <LogoMark className="h-9" />
       <div className="flex max-w-sm flex-col items-center gap-3 rounded-3xl border border-border bg-card p-8 shadow-sm">
         <ShieldAlert className="size-8 text-muted-foreground" />
-        <h1 className="text-lg font-semibold">Sem acesso ao painel</h1>
+        <h1 className="font-heading text-2xl font-semibold">Sem acesso ao painel</h1>
         <p className="text-sm text-muted-foreground">
           Sua conta ({user.email}) ainda não tem acesso de mentor. Peça a um administrador da
           Aristocrata Society pra te convidar.

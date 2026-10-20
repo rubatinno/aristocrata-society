@@ -23,7 +23,7 @@ export default async function DisponibilidadePage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Disponibilidade</h1>
+        <h1 className="font-heading text-3xl font-semibold tracking-tight">Disponibilidade</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Abra os horários em que você pode receber mentorias. Os horários são exibidos no fuso{" "}
           <span className="font-medium text-foreground">{profile.timezone}</span>.

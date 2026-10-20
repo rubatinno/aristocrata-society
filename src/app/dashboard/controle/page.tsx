@@ -96,7 +96,7 @@ export default async function ControlePage() {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Controle</h1>
+        <h1 className="font-heading text-3xl font-semibold tracking-tight">Controle</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Defina o valor por chamada de cada mentor e registre os pagamentos já feitos — o sistema
           calcula sozinho quantas chamadas concluídas (individuais + Discord) ainda não foram pagas.

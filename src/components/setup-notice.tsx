@@ -6,7 +6,7 @@ export function SupabaseSetupNotice() {
       <div className="flex size-12 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
         <TriangleAlert className="size-6" />
       </div>
-      <h1 className="text-xl font-semibold">Configure o Supabase</h1>
+      <h1 className="font-heading text-2xl font-semibold">Configure o Supabase</h1>
       <p className="text-sm text-muted-foreground">
         Para usar login, painel e agendamentos reais, crie um projeto em{" "}
         <span className="font-medium text-foreground">supabase.com</span>, rode a migration em{" "}

@@ -23,7 +23,7 @@ export default async function PlanosPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Planos</h1>
+        <h1 className="font-heading text-3xl font-semibold tracking-tight">Planos</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Crie planos com limites de chamadas e duração. Vincule um plano a cada mentorado na
           página de Mentorados.

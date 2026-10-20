@@ -24,7 +24,7 @@ export default async function AdminAulasPage() {
     <div className="mx-auto max-w-5xl space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Aulas</h1>
+          <h1 className="font-heading text-3xl font-semibold tracking-tight">Aulas</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Monte os módulos e aulas que todo mentorado vê na área dele, do jeito que você quiser.
           </p>

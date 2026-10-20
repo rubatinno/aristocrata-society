@@ -29,7 +29,7 @@ export default async function FinanceiroPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Financeiro</h1>
+        <h1 className="font-heading text-3xl font-semibold tracking-tight">Financeiro</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Quantas chamadas cada mentor realizou, com acesso à agenda completa da equipe. Filtre por
           mentor, período e status.

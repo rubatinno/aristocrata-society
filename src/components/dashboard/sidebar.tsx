@@ -87,10 +87,10 @@ export function DashboardSidebar({
             (link.href === "/dashboard" ? pathname === link.href : pathname.startsWith(link.href));
 
           const className = cn(
-            "flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
+            "flex items-center gap-3 rounded-md border-l-2 px-3 py-2 text-sm font-medium transition-colors",
             isActive
-              ? "bg-sidebar-accent text-sidebar-accent-foreground"
-              : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+              ? "border-sidebar-primary bg-sidebar-accent text-sidebar-accent-foreground"
+              : "border-transparent text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
           );
 
           if (link.external) {
