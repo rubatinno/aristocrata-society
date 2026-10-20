@@ -30,37 +30,71 @@ export default async function AgendarPage({
     .order("full_name");
 
   const now = new Date();
+  const allProfiles = (profiles as Profile[]) ?? [];
+
+  // Antes, cada mentor disparava 3 queries próprias (3×N round-trips, N×3
+  // requisições simultâneas brigando pela mesma origem). Batchamos as duas
+  // que não dependem de um RPC por mentor — recurring_enabled e
+  // availability_dates — num punhado de queries só, o que derruba bastante
+  // o tempo de carregamento da página pública de agendamento.
+  const recurringMentorIds = allProfiles.filter((p) => p.recurring_enabled).map((p) => p.id);
+  const rulesPromise = recurringMentorIds.length
+    ? supabase.from("availability_rules").select("*").in("mentor_id", recurringMentorIds).eq("is_active", true)
+    : Promise.resolve({ data: [] as AvailabilityRule[] | null });
+
+  // Data de "hoje" no fuso do PRÓPRIO mentor, não em UTC — em fusos
+  // negativos (ex: Brasil), UTC já vira o dia seguinte horas antes da
+  // meia-noite local, o que excluía indevidamente o resto do dia local.
+  // Agrupamos por fuso horário (normalmente um só) pra batchar em vez de
+  // uma query por mentor.
+  const mentorIdsByTimezone = new Map<string, string[]>();
+  for (const p of allProfiles) {
+    const list = mentorIdsByTimezone.get(p.timezone) ?? [];
+    list.push(p.id);
+    mentorIdsByTimezone.set(p.timezone, list);
+  }
+  const dateRulesPromises = Array.from(mentorIdsByTimezone.entries()).map(([timezone, mentorIds]) =>
+    supabase
+      .from("availability_dates")
+      .select("*")
+      .in("mentor_id", mentorIds)
+      .eq("is_active", true)
+      .gte("date", dateKey(now, timezone)),
+  );
+
+  const [{ data: allRules }, ...dateRulesResults] = await Promise.all([rulesPromise, ...dateRulesPromises]);
+
+  const rulesByMentor = new Map<string, AvailabilityRule[]>();
+  for (const rule of (allRules as AvailabilityRule[]) ?? []) {
+    const list = rulesByMentor.get(rule.mentor_id) ?? [];
+    list.push(rule);
+    rulesByMentor.set(rule.mentor_id, list);
+  }
+  const dateRulesByMentor = new Map<string, AvailabilityDate[]>();
+  for (const result of dateRulesResults) {
+    for (const dateRule of (result.data as AvailabilityDate[]) ?? []) {
+      const list = dateRulesByMentor.get(dateRule.mentor_id) ?? [];
+      list.push(dateRule);
+      dateRulesByMentor.set(dateRule.mentor_id, list);
+    }
+  }
 
   const mentorsWithEmpty: MentorOption[] = await Promise.all(
-    ((profiles as Profile[]) ?? []).map(async (profile) => {
+    allProfiles.map(async (profile) => {
       const windowEnd = addDays(now, profile.booking_window_days);
 
-      const [{ data: rules }, { data: dateRules }, { data: busyRanges }] = await Promise.all([
-        supabase
-          .from("availability_rules")
-          .select("*")
-          .eq("mentor_id", profile.id)
-          .eq("is_active", true),
-        // Data de "hoje" no fuso do PRÓPRIO mentor, não em UTC — em fusos
-        // negativos (ex: Brasil), UTC já vira o dia seguinte horas antes da
-        // meia-noite local, o que excluía indevidamente o resto do dia local.
-        supabase
-          .from("availability_dates")
-          .select("*")
-          .eq("mentor_id", profile.id)
-          .eq("is_active", true)
-          .gte("date", dateKey(now, profile.timezone)),
-        supabase.rpc("get_busy_ranges", {
-          p_mentor_id: profile.id,
-          p_from: now.toISOString(),
-          p_to: windowEnd.toISOString(),
-        }),
-      ]);
+      // O RPC só aceita um mentor por chamada, então continua por mentor —
+      // mas agora é a única query que sobra no loop.
+      const { data: busyRanges } = await supabase.rpc("get_busy_ranges", {
+        p_mentor_id: profile.id,
+        p_from: now.toISOString(),
+        p_to: windowEnd.toISOString(),
+      });
 
       return {
         profile,
-        rules: profile.recurring_enabled ? ((rules as AvailabilityRule[]) ?? []) : [],
-        dateRules: (dateRules as AvailabilityDate[]) ?? [],
+        rules: profile.recurring_enabled ? (rulesByMentor.get(profile.id) ?? []) : [],
+        dateRules: dateRulesByMentor.get(profile.id) ?? [],
         busyRanges: busyRanges ?? [],
       };
     }),
