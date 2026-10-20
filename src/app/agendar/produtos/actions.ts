@@ -15,7 +15,7 @@ export async function listMenteeProducts(menteeId: string) {
     .from("mentee_products")
     .select("*")
     .eq("mentee_id", menteeId)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: false });
 
   return (data as MenteeProduct[]) ?? [];
 }

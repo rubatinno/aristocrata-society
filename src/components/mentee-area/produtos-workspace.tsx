@@ -59,6 +59,15 @@ function productStats(creatives: MenteeProductCreative[]) {
   return { total: creatives.length, validated, sales };
 }
 
+type ProductSortField = "recent" | "name" | "sales" | "creatives";
+
+const PRODUCT_SORT_ITEMS: Record<ProductSortField, string> = {
+  recent: "Mais recente",
+  name: "Nome",
+  sales: "Mais vendas",
+  creatives: "Mais criativos",
+};
+
 function StatBadge({
   icon: Icon,
   children,
@@ -71,13 +80,13 @@ function StatBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+        "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium",
         tone === "success" && "bg-success/15 text-success",
         tone === "primary" && "bg-primary/10 text-primary",
         tone === "muted" && "bg-muted text-muted-foreground",
       )}
     >
-      <Icon className="size-3" />
+      <Icon className="size-3.5" />
       {children}
     </span>
   );
@@ -102,6 +111,8 @@ export function ProdutosWorkspace({
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
+  const [productSearch, setProductSearch] = useState("");
+  const [productSort, setProductSort] = useState<ProductSortField>("recent");
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -217,6 +228,32 @@ export function ProdutosWorkspace({
 
   const selectedProduct = products.find((p) => p.id === selectedId) ?? null;
 
+  const visibleProducts = useMemo(() => {
+    const query = productSearch.trim().toLowerCase();
+    const filtered = query ? products.filter((p) => p.name.toLowerCase().includes(query)) : products;
+
+    const withStats = filtered.map((product) => ({
+      product,
+      stats: productStats(creatives.filter((c) => c.product_id === product.id)),
+    }));
+
+    withStats.sort((a, b) => {
+      switch (productSort) {
+        case "name":
+          return a.product.name.localeCompare(b.product.name);
+        case "sales":
+          return b.stats.sales - a.stats.sales;
+        case "creatives":
+          return b.stats.total - a.stats.total;
+        case "recent":
+        default:
+          return new Date(b.product.created_at).getTime() - new Date(a.product.created_at).getTime();
+      }
+    });
+
+    return withStats;
+  }, [products, creatives, productSearch, productSort]);
+
   return (
     <div className={cn("flex min-h-0 flex-col overflow-y-auto p-4 sm:p-6", className)}>
       {selectedProduct ? (
@@ -233,8 +270,8 @@ export function ProdutosWorkspace({
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="font-heading text-lg font-semibold">Produtos</h2>
-              <p className="text-sm text-muted-foreground">
+              <h2 className="font-heading text-2xl font-semibold">Produtos</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
                 Sua central pra organizar produtos e criativos testados.
               </p>
             </div>
@@ -243,6 +280,33 @@ export function ProdutosWorkspace({
               Novo produto
             </Button>
           </div>
+
+          {products.length > 0 && (
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <Input
+                value={productSearch}
+                onChange={(e) => setProductSearch(e.target.value)}
+                placeholder="Buscar produto..."
+                className="h-9 w-full max-w-xs text-sm"
+              />
+              <Select
+                value={productSort}
+                onValueChange={(v) => v && setProductSort(v as ProductSortField)}
+                items={PRODUCT_SORT_ITEMS}
+              >
+                <SelectTrigger className="h-9 w-44 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(PRODUCT_SORT_ITEMS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <NewProductDialog
             open={isProductDialogOpen}
@@ -258,14 +322,17 @@ export function ProdutosWorkspace({
                 Crie o primeiro produto pra começar a organizar seus criativos.
               </p>
             </div>
+          ) : visibleProducts.length === 0 ? (
+            <p className="mt-6 text-center text-sm text-muted-foreground">
+              Nenhum produto encontrado pra &quot;{productSearch}&quot;.
+            </p>
           ) : (
-            <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {products.map((product) => {
-                const stats = productStats(creatives.filter((c) => c.product_id === product.id));
+            <div className="mt-6 grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(320px,1fr))]">
+              {visibleProducts.map(({ product, stats }) => {
                 return (
                   <div
                     key={product.id}
-                    className="group relative flex flex-col gap-3 overflow-hidden rounded-2xl border border-border bg-card p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-lg hover:shadow-accent/10"
+                    className="group relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-border bg-card p-6 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-lg hover:shadow-accent/10"
                   >
                     <div
                       aria-hidden
@@ -275,10 +342,10 @@ export function ProdutosWorkspace({
                       <button
                         type="button"
                         onClick={() => setSelectedId(product.id)}
-                        className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+                        className="flex min-w-0 flex-1 items-center gap-3 text-left"
                       >
-                        <span className="relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary/30 via-primary/10 to-transparent ring-1 ring-primary/30 shadow-sm">
-                          <Package className="size-4 text-primary drop-shadow-sm" />
+                        <span className="relative flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary/30 via-primary/10 to-transparent ring-1 ring-primary/30 shadow-sm">
+                          <Package className="size-5 text-primary drop-shadow-sm" />
                         </span>
                         {renamingId === product.id ? (
                           <Input
@@ -293,10 +360,10 @@ export function ProdutosWorkspace({
                                 commitRename(product);
                               }
                             }}
-                            className="h-8"
+                            className="h-9"
                           />
                         ) : (
-                          <span className="min-w-0 flex-1 truncate text-sm font-semibold">{product.name}</span>
+                          <span className="min-w-0 flex-1 truncate text-lg font-semibold">{product.name}</span>
                         )}
                       </button>
                       <div className="flex shrink-0 items-center opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
@@ -346,18 +413,18 @@ export function ProdutosWorkspace({
                     </button>
 
                     {(product.sales_page_link || product.creative_drive_link) && (
-                      <div className="space-y-1 border-t border-border pt-3">
+                      <div className="space-y-1.5 border-t border-border pt-4">
                         {product.sales_page_link && (
                           <a
                             href={product.sales_page_link}
                             target="_blank"
                             rel="noreferrer"
                             onClick={(e) => e.stopPropagation()}
-                            className="group/link flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
+                            className="group/link flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
                           >
-                            <Globe className="size-3.5 shrink-0 text-primary" />
+                            <Globe className="size-4 shrink-0 text-primary" />
                             <span className="min-w-0 flex-1 truncate">Página de vendas</span>
-                            <ExternalLink className="size-3 shrink-0 opacity-0 transition-opacity group-hover/link:opacity-100" />
+                            <ExternalLink className="size-3.5 shrink-0 opacity-0 transition-opacity group-hover/link:opacity-100" />
                           </a>
                         )}
                         {product.creative_drive_link && (
@@ -366,11 +433,11 @@ export function ProdutosWorkspace({
                             target="_blank"
                             rel="noreferrer"
                             onClick={(e) => e.stopPropagation()}
-                            className="group/link flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
+                            className="group/link flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
                           >
-                            <HardDrive className="size-3.5 shrink-0 text-primary" />
+                            <HardDrive className="size-4 shrink-0 text-primary" />
                             <span className="min-w-0 flex-1 truncate">Drive de criativos</span>
-                            <ExternalLink className="size-3 shrink-0 opacity-0 transition-opacity group-hover/link:opacity-100" />
+                            <ExternalLink className="size-3.5 shrink-0 opacity-0 transition-opacity group-hover/link:opacity-100" />
                           </a>
                         )}
                       </div>
