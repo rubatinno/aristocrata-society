@@ -903,7 +903,12 @@ function MenteeCard({
             className="flex flex-wrap items-center gap-2 pt-1"
           >
             <Input name="title" placeholder="Nome do link" className="min-w-32 flex-1" required />
-            <Input name="url" placeholder="https://..." className="min-w-40 flex-1" required />
+            <Input
+              name="url"
+              placeholder="https://... (aceita Google Docs, Sheets, Slides e Drive)"
+              className="min-w-40 flex-1"
+              required
+            />
             <Button type="submit" size="sm" disabled={pending} className="gap-1.5">
               {pending && <Loader2 className="size-3.5 animate-spin" />}
               Salvar

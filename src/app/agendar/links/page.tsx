@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import { ExternalLink, LinkIcon } from "lucide-react";
+import { LinkIcon } from "lucide-react";
 import { getMenteeSession } from "@/app/agendar/mentee-actions";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { SupabaseSetupNotice } from "@/components/setup-notice";
+import { MenteeLinkRow } from "@/components/mentee-area/mentee-link-row";
 import type { MenteeLink } from "@/lib/types";
 
 export default async function MenteeLinksPage() {
@@ -55,19 +55,7 @@ export default async function MenteeLinksPage() {
       ) : (
         <div className="space-y-2">
           {links.map((link) => (
-            <Link
-              key={link.id}
-              href={link.url}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40"
-            >
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <LinkIcon className="size-4" />
-              </div>
-              <span className="min-w-0 flex-1 truncate text-sm font-medium">{link.title}</span>
-              <ExternalLink className="size-4 shrink-0 text-muted-foreground" />
-            </Link>
+            <MenteeLinkRow key={link.id} link={link} />
           ))}
         </div>
       )}
