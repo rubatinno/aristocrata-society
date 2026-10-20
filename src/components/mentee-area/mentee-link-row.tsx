@@ -41,7 +41,7 @@ export function MenteeLinkRow({ link }: { link: MenteeLink }) {
       <iframe
         src={embedUrl}
         title={link.title}
-        className="h-[480px] w-full bg-muted"
+        className="h-[85vh] min-h-[600px] w-full bg-muted"
         allowFullScreen
       />
     </div>
