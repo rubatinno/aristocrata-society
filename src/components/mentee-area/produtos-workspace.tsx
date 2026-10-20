@@ -30,7 +30,7 @@ import {
   CircleDashed,
   ExternalLink,
   Globe,
-  Library,
+  HardDrive,
   Link2,
   Loader2,
   Package,
@@ -345,28 +345,32 @@ export function ProdutosWorkspace({
                       </StatBadge>
                     </button>
 
-                    {(product.sales_page_link || product.ad_library_link) && (
-                      <div className="flex flex-wrap items-center gap-1.5 border-t border-border pt-3">
+                    {(product.sales_page_link || product.creative_drive_link) && (
+                      <div className="space-y-1 border-t border-border pt-3">
                         {product.sales_page_link && (
                           <a
                             href={product.sales_page_link}
                             target="_blank"
                             rel="noreferrer"
                             onClick={(e) => e.stopPropagation()}
-                            className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                            className="group/link flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
                           >
-                            <Globe className="size-3" /> Página de vendas
+                            <Globe className="size-3.5 shrink-0 text-primary" />
+                            <span className="min-w-0 flex-1 truncate">Página de vendas</span>
+                            <ExternalLink className="size-3 shrink-0 opacity-0 transition-opacity group-hover/link:opacity-100" />
                           </a>
                         )}
-                        {product.ad_library_link && (
+                        {product.creative_drive_link && (
                           <a
-                            href={product.ad_library_link}
+                            href={product.creative_drive_link}
                             target="_blank"
                             rel="noreferrer"
                             onClick={(e) => e.stopPropagation()}
-                            className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                            className="group/link flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
                           >
-                            <Library className="size-3" /> Biblioteca
+                            <HardDrive className="size-3.5 shrink-0 text-primary" />
+                            <span className="min-w-0 flex-1 truncate">Drive de criativos</span>
+                            <ExternalLink className="size-3 shrink-0 opacity-0 transition-opacity group-hover/link:opacity-100" />
                           </a>
                         )}
                       </div>
@@ -393,7 +397,7 @@ function NewProductDialog({
 }) {
   const [name, setName] = useState("");
   const [salesPageLink, setSalesPageLink] = useState("");
-  const [adLibraryLink, setAdLibraryLink] = useState("");
+  const [creativeDriveLink, setCreativeDriveLink] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -401,14 +405,16 @@ function NewProductDialog({
       // eslint-disable-next-line react-hooks/set-state-in-effect -- reseta o formulário ao reabrir, não sincroniza com nada externo
       setName("");
       setSalesPageLink("");
-      setAdLibraryLink("");
+      setCreativeDriveLink("");
     }
   }, [open]);
 
+  const canCreate = name.trim() !== "" && salesPageLink.trim() !== "" && creativeDriveLink.trim() !== "";
+
   function handleCreate() {
-    if (!name.trim()) return;
+    if (!canCreate) return;
     setIsSaving(true);
-    onCreate({ name, salesPageLink, adLibraryLink }).finally(() => setIsSaving(false));
+    onCreate({ name, salesPageLink, creativeDriveLink }).finally(() => setIsSaving(false));
   }
 
   return (
@@ -439,7 +445,9 @@ function NewProductDialog({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Link da página de vendas</label>
+            <label className="text-xs font-medium text-muted-foreground">
+              Link da página de vendas <span className="text-destructive">*</span>
+            </label>
             <div className="relative">
               <Globe className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -447,19 +455,23 @@ function NewProductDialog({
                 onChange={(e) => setSalesPageLink(e.target.value)}
                 placeholder="https://..."
                 className="pl-8"
+                required
               />
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Biblioteca de anúncios</label>
+            <label className="text-xs font-medium text-muted-foreground">
+              Drive de criativos <span className="text-destructive">*</span>
+            </label>
             <div className="relative">
-              <Library className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <HardDrive className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
-                value={adLibraryLink}
-                onChange={(e) => setAdLibraryLink(e.target.value)}
-                placeholder="Link da Meta Ads Library, por exemplo"
+                value={creativeDriveLink}
+                onChange={(e) => setCreativeDriveLink(e.target.value)}
+                placeholder="Link da pasta no Google Drive"
                 className="pl-8"
+                required
               />
             </div>
           </div>
@@ -469,7 +481,7 @@ function NewProductDialog({
           <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={isSaving}>
             Cancelar
           </Button>
-          <Button type="button" onClick={handleCreate} disabled={isSaving || !name.trim()} className="gap-1.5">
+          <Button type="button" onClick={handleCreate} disabled={isSaving || !canCreate} className="gap-1.5">
             {isSaving ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
             Criar produto
           </Button>
@@ -530,7 +542,7 @@ function ProductFolder({
   const [dateTo, setDateTo] = useState("");
   const [editingLinks, setEditingLinks] = useState(false);
   const [salesPageInput, setSalesPageInput] = useState(product.sales_page_link ?? "");
-  const [adLibraryInput, setAdLibraryInput] = useState(product.ad_library_link ?? "");
+  const [creativeDriveInput, setCreativeDriveInput] = useState(product.creative_drive_link ?? "");
   const [isSavingLinks, setIsSavingLinks] = useState(false);
 
   async function handleCreateCreative(input: NewCreativeInput) {
@@ -560,7 +572,7 @@ function ProductFolder({
     setIsSavingLinks(true);
     const patch = {
       sales_page_link: salesPageInput.trim() || null,
-      ad_library_link: adLibraryInput.trim() || null,
+      creative_drive_link: creativeDriveInput.trim() || null,
     };
     onPatchProduct(patch);
     updateProductLinks(product.id, patch, revalidateTarget)
@@ -586,7 +598,7 @@ function ProductFolder({
   }, [creatives, sortField, sortDirection, dateFrom, dateTo, hasDateFilter]);
 
   const stats = productStats(creatives);
-  const hasLinks = product.sales_page_link || product.ad_library_link;
+  const hasLinks = product.sales_page_link || product.creative_drive_link;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -625,14 +637,14 @@ function ProductFolder({
             <Globe className="size-3.5" /> Página de vendas
           </a>
         )}
-        {product.ad_library_link && (
+        {product.creative_drive_link && (
           <a
-            href={product.ad_library_link}
+            href={product.creative_drive_link}
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
-            <Library className="size-3.5" /> Biblioteca de anúncios
+            <HardDrive className="size-3.5" /> Drive de criativos
           </a>
         )}
         <Button
@@ -662,13 +674,13 @@ function ProductFolder({
             </div>
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Biblioteca de anúncios</label>
+            <label className="text-xs font-medium text-muted-foreground">Drive de criativos</label>
             <div className="relative">
-              <Library className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <HardDrive className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
-                value={adLibraryInput}
-                onChange={(e) => setAdLibraryInput(e.target.value)}
-                placeholder="Link da Meta Ads Library, por exemplo"
+                value={creativeDriveInput}
+                onChange={(e) => setCreativeDriveInput(e.target.value)}
+                placeholder="Link da pasta no Google Drive"
                 className="pl-8"
               />
             </div>

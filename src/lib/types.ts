@@ -161,7 +161,7 @@ export type MenteeProduct = {
   mentee_id: string;
   name: string;
   sales_page_link: string | null;
-  ad_library_link: string | null;
+  creative_drive_link: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -400,13 +400,13 @@ export type Database = {
         Row: MenteeProduct;
         Insert: Omit<
           MenteeProduct,
-          "id" | "created_at" | "updated_at" | "sales_page_link" | "ad_library_link"
+          "id" | "created_at" | "updated_at" | "sales_page_link" | "creative_drive_link"
         > & {
           id?: string;
           created_at?: string;
           updated_at?: string;
           sales_page_link?: string | null;
-          ad_library_link?: string | null;
+          creative_drive_link?: string | null;
         };
         Update: Partial<MenteeProduct>;
         Relationships: [];

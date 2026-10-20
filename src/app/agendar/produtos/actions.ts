@@ -34,10 +34,19 @@ export async function listProductCreatives(menteeId: string) {
 export interface NewProductInput {
   name: string;
   salesPageLink: string;
-  adLibraryLink: string;
+  creativeDriveLink: string;
 }
 
 export async function createProduct(menteeId: string, input: NewProductInput, revalidateTarget: string) {
+  const salesPageLink = input.salesPageLink.trim();
+  const creativeDriveLink = input.creativeDriveLink.trim();
+
+  // Pro mentor conseguir analisar qualquer produto com eficiência, os dois
+  // links viram obrigatórios na criação — não dá pra salvar sem eles.
+  if (!salesPageLink || !creativeDriveLink) {
+    throw new Error("Página de vendas e Drive de criativos são obrigatórios.");
+  }
+
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -45,8 +54,8 @@ export async function createProduct(menteeId: string, input: NewProductInput, re
     .insert({
       mentee_id: menteeId,
       name: input.name.trim() || "Novo produto",
-      sales_page_link: input.salesPageLink.trim() || null,
-      ad_library_link: input.adLibraryLink.trim() || null,
+      sales_page_link: salesPageLink,
+      creative_drive_link: creativeDriveLink,
     })
     .select("*")
     .single();
@@ -72,7 +81,7 @@ export async function renameProduct(id: string, name: string, revalidateTarget: 
 
 export interface ProductLinksPatch {
   sales_page_link?: string | null;
-  ad_library_link?: string | null;
+  creative_drive_link?: string | null;
 }
 
 export async function updateProductLinks(id: string, patch: ProductLinksPatch, revalidateTarget: string) {
