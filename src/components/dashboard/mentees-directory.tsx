@@ -902,10 +902,11 @@ function MenteeCard({
             }}
             className="flex flex-wrap items-center gap-2 pt-1"
           >
-            <Input name="title" placeholder="Nome do link" className="min-w-32 flex-1" required />
+            <Input name="title" placeholder="Nome do documento" className="min-w-32 flex-1" required />
             <Input
               name="url"
-              placeholder="https://... (aceita Google Docs, Sheets, Slides e Drive)"
+              type="url"
+              placeholder="Link do Google Docs, Sheets, Slides ou Drive"
               className="min-w-40 flex-1"
               required
             />
@@ -928,7 +929,7 @@ function MenteeCard({
             onClick={() => setShowForm(true)}
             className="gap-1.5 text-primary hover:text-primary"
           >
-            <Plus className="size-3.5" /> Adicionar link
+            <Plus className="size-3.5" /> Adicionar Google Doc
           </Button>
         )}
       </div>

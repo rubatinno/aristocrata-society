@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/admin";
+import { googleEmbedUrl } from "@/lib/links";
 
 export interface LinkFormState {
   status: "idle" | "success" | "error";
@@ -29,6 +30,15 @@ export async function addMenteeLink(
   if (!title) return { status: "error", message: "Dê um nome para o link." };
   if (!/^https?:\/\//i.test(url)) {
     return { status: "error", message: "Informe uma URL válida (começando com http:// ou https://)." };
+  }
+  // Essa aba virou "Google Docs" — só aceita documentos, planilhas,
+  // apresentações, formulários ou arquivos do Drive, pra manter o que o
+  // mentorado vê consistente com a pré-visualização embutida.
+  if (!googleEmbedUrl(url)) {
+    return {
+      status: "error",
+      message: "Só é possível adicionar links do Google Docs, Sheets, Slides, Forms ou Drive.",
+    };
   }
 
   const { error } = await supabase.from("mentee_links").insert({
