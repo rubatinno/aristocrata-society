@@ -6,11 +6,10 @@ import { usePathname } from "next/navigation";
 import {
   BookOpen,
   CalendarDays,
+  FileText,
   History,
-  Link as LinkIcon,
   NotebookPen,
   Package,
-  Target,
   type LucideIcon,
 } from "lucide-react";
 import { LogoMark } from "@/components/logo";
@@ -23,9 +22,8 @@ type NavLink = { href: string; label: string; icon?: LucideIcon; iconSrc?: strin
 const links: NavLink[] = [
   { href: "/agendar", label: "Agendamentos", icon: CalendarDays },
   { href: "/agendar/aulas", label: "Aulas", icon: BookOpen },
-  { href: "/agendar/links", label: "Links importantes", icon: LinkIcon },
+  { href: "/agendar/links", label: "Google Docs", icon: FileText },
   { href: "/agendar/anotacoes", label: "Anotações", icon: NotebookPen },
-  { href: "/agendar/progresso", label: "Progresso", icon: Target },
   { href: "/agendar/produtos", label: "Produtos", icon: Package },
   { href: DISCORD_URL, label: "Discord Oficial", iconSrc: "/icons/discord.png", external: true },
   { href: "/agendar/historico", label: "Histórico", icon: History },

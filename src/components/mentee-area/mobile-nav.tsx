@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, History, Link as LinkIcon, NotebookPen, type LucideIcon } from "lucide-react";
+import { CalendarDays, FileText, History, NotebookPen, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const DISCORD_URL = "https://discord.gg/guzFgznCPD";
@@ -12,7 +12,7 @@ type NavLink = { href: string; label: string; icon?: LucideIcon; iconSrc?: strin
 
 const links: NavLink[] = [
   { href: "/agendar", label: "Agendar", icon: CalendarDays },
-  { href: "/agendar/links", label: "Links", icon: LinkIcon },
+  { href: "/agendar/links", label: "Docs", icon: FileText },
   { href: "/agendar/anotacoes", label: "Notas", icon: NotebookPen },
   { href: DISCORD_URL, label: "Discord", iconSrc: "/icons/discord.png", external: true },
   { href: "/agendar/historico", label: "Histórico", icon: History },

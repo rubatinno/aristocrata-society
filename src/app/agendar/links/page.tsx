@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { LinkIcon } from "lucide-react";
+import { FileText } from "lucide-react";
 import { getMenteeSession } from "@/app/agendar/mentee-actions";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
@@ -38,18 +38,18 @@ export default async function MenteeLinksPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6">
       <div>
-        <h1 className="font-heading text-3xl font-semibold tracking-tight">Links importantes</h1>
+        <h1 className="font-heading text-3xl font-semibold tracking-tight">Google Docs</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Documentos, materiais e links que seu mentor guardou pra você por aqui.
+          Documentos e materiais que seu mentor guardou pra você por aqui.
         </p>
       </div>
 
       {links.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border py-14 text-center">
-          <LinkIcon className="size-8 text-muted-foreground" />
-          <p className="text-sm font-medium">Nenhum link por aqui ainda</p>
+          <FileText className="size-8 text-muted-foreground" />
+          <p className="text-sm font-medium">Nenhum documento por aqui ainda</p>
           <p className="max-w-xs text-sm text-muted-foreground">
-            Quando um mentor adicionar um link ou documento pra você, ele aparece nesta página.
+            Quando um mentor adicionar um documento ou link pra você, ele aparece nesta página.
           </p>
         </div>
       ) : (
