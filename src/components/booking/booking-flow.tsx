@@ -3,23 +3,22 @@
 import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
+  addMonthsToKey,
   buildDaySlots,
+  buildMonthGrid,
   dateKey,
   listCandidateDateKeys,
+  startOfMonthKey,
   weekdayFromDateKey,
   type BusyRange,
   type Slot,
 } from "@/lib/scheduling";
-import {
-  formatDateKeyDayNumber,
-  formatDateKeyFull,
-  formatDateKeyMonthShort,
-  formatDateKeyWeekdayShort,
-  formatTime,
-} from "@/lib/format";
+import { formatDateKeyDayNumber, formatDateKeyFull, formatDateKeyMonthYear, formatTime } from "@/lib/format";
 import { BookingDialog, readPendingBooking } from "@/components/booking/booking-dialog";
 import type { AvailabilityDate, AvailabilityRule, Profile } from "@/lib/types";
-import { CalendarX2, CheckCircle2 } from "lucide-react";
+import { CalendarX2, CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
+
+const WEEKDAY_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 export function BookingFlow({
   profile,
@@ -80,11 +79,16 @@ export function BookingFlow({
     dateKeys.find((key) => (slotsByDay.get(key) ?? []).some((s) => !s.busy)) ??
     dateKeys.find((key) => (slotsByDay.get(key)?.length ?? 0) > 0);
   const [selectedDate, setSelectedDate] = useState(firstAvailable ?? dateKeys[0]);
+  const [visibleMonth, setVisibleMonth] = useState(startOfMonthKey(firstAvailable ?? dateKeys[0]));
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [confirmedSlot, setConfirmedSlot] = useState<Slot | null>(null);
 
   const daySlots = slotsByDay.get(selectedDate) ?? [];
   const hasAnySlot = dateKeys.some((key) => (slotsByDay.get(key)?.length ?? 0) > 0);
+
+  const minMonthKey = startOfMonthKey(dateKeys[0]);
+  const maxMonthKey = startOfMonthKey(dateKeys[dateKeys.length - 1]);
+  const monthGrid = useMemo(() => buildMonthGrid(visibleMonth), [visibleMonth]);
 
   // Se acabamos de voltar de um link mágico enviado a partir dessa mesma
   // mentoria, reabre o diálogo direto no horário que a pessoa tinha escolhido.
@@ -96,8 +100,10 @@ export function BookingFlow({
     for (const slots of slotsByDay.values()) {
       const found = slots.find((s) => s.startsAt.toISOString() === pending.startsAt);
       if (found) {
+        const key = dateKey(found.startsAt, profile.timezone);
         // eslint-disable-next-line react-hooks/set-state-in-effect
-        setSelectedDate(dateKey(found.startsAt, profile.timezone));
+        setSelectedDate(key);
+        setVisibleMonth(startOfMonthKey(key));
         setSelectedSlot(found);
         break;
       }
@@ -150,31 +156,60 @@ export function BookingFlow({
         </div>
       )}
 
-      <div>
-        <p className="mb-2 text-xs font-medium text-muted-foreground">Escolha um dia</p>
-        <div className="flex gap-2 overflow-x-auto pb-2">
-          {dateKeys.map((key) => {
-            const available = (slotsByDay.get(key)?.length ?? 0) > 0;
+      <div className="rounded-2xl border border-border/70 bg-background/40 p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <button
+            type="button"
+            aria-label="Mês anterior"
+            disabled={visibleMonth <= minMonthKey}
+            onClick={() => setVisibleMonth((m) => addMonthsToKey(m, -1))}
+            className="flex size-8 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:border-accent/50 hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+          >
+            <ChevronLeft className="size-4" />
+          </button>
+          <p className="font-heading text-base font-semibold tracking-tight">
+            {formatDateKeyMonthYear(visibleMonth)}
+          </p>
+          <button
+            type="button"
+            aria-label="Próximo mês"
+            disabled={visibleMonth >= maxMonthKey}
+            onClick={() => setVisibleMonth((m) => addMonthsToKey(m, 1))}
+            className="flex size-8 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:border-accent/50 hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+          >
+            <ChevronRight className="size-4" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-7 gap-y-1 text-center">
+          {WEEKDAY_LABELS.map((label) => (
+            <span key={label} className="py-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+              {label}
+            </span>
+          ))}
+          {monthGrid.map((key) => {
+            const inCurrentMonth = key.slice(0, 7) === visibleMonth.slice(0, 7);
+            const hasSlots = inCurrentMonth && (slotsByDay.get(key)?.length ?? 0) > 0;
             const isSelected = key === selectedDate;
+            const isToday = key === dateKeys[0];
             return (
-              <button
-                key={key}
-                type="button"
-                disabled={!available}
-                onClick={() => setSelectedDate(key)}
-                className={cn(
-                  "flex w-14 shrink-0 flex-col items-center gap-0.5 rounded-xl border py-2 text-xs transition-colors",
-                  isSelected
-                    ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                    : available
-                      ? "border-border text-foreground hover:border-primary/40"
-                      : "border-border/50 text-muted-foreground/40",
-                )}
-              >
-                <span>{formatDateKeyWeekdayShort(key)}</span>
-                <span className="text-sm font-semibold">{formatDateKeyDayNumber(key)}</span>
-                <span className="text-[10px] uppercase">{formatDateKeyMonthShort(key)}</span>
-              </button>
+              <div key={key} className="flex items-center justify-center py-0.5">
+                <button
+                  type="button"
+                  disabled={!hasSlots}
+                  onClick={() => setSelectedDate(key)}
+                  className={cn(
+                    "flex size-9 items-center justify-center rounded-full text-sm font-medium transition-colors",
+                    !inCurrentMonth && "pointer-events-none text-transparent",
+                    inCurrentMonth && !hasSlots && "cursor-not-allowed text-muted-foreground/30",
+                    inCurrentMonth && hasSlots && !isSelected && "text-foreground hover:bg-accent/15",
+                    isSelected && "bg-primary text-primary-foreground shadow-md shadow-primary/25",
+                    isToday && !isSelected && "ring-1 ring-accent/60",
+                  )}
+                >
+                  {formatDateKeyDayNumber(key)}
+                </button>
+              </div>
             );
           })}
         </div>
@@ -197,10 +232,10 @@ export function BookingFlow({
                 disabled={slot.busy}
                 onClick={() => setSelectedSlot(slot)}
                 className={cn(
-                  "rounded-lg border py-2 text-sm font-medium transition-colors",
+                  "rounded-xl border py-2.5 text-sm font-medium transition-all",
                   slot.busy
                     ? "cursor-not-allowed border-border/50 text-muted-foreground/40 line-through"
-                    : "border-border hover:border-primary hover:bg-accent hover:text-accent-foreground",
+                    : "border-border hover:-translate-y-0.5 hover:border-primary hover:bg-accent/10 hover:shadow-md",
                 )}
               >
                 {formatTime(slot.startsAt, profile.timezone)}

@@ -44,6 +44,38 @@ export function listCandidateDateKeys(days: number, timeZone: string, from: Date
   });
 }
 
+/** dateKey (yyyy-MM-dd) do primeiro dia do mês de `key`. */
+export function startOfMonthKey(key: string): string {
+  return `${key.slice(0, 7)}-01`;
+}
+
+/** Mesmo mês de `key`, deslocado `delta` meses (±1 pra navegar no calendário). */
+export function addMonthsToKey(key: string, delta: number): string {
+  const [year, month] = key.split("-").map(Number);
+  const d = new Date(Date.UTC(year, month - 1 + delta, 1, 12));
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Grade completa de semanas (6×7 ou 5×7 células) pro mês de `monthKey`,
+ * incluindo os dias de preenchimento do mês anterior/seguinte — como um
+ * calendário de verdade, não só os dias dentro da janela de agendamento.
+ */
+export function buildMonthGrid(monthKey: string): string[] {
+  const first = startOfMonthKey(monthKey);
+  const [year, month] = first.split("-").map(Number);
+  const firstWeekday = weekdayFromDateKey(first);
+  const daysInMonth = new Date(Date.UTC(year, month, 0, 12)).getUTCDate();
+  const totalCells = Math.ceil((firstWeekday + daysInMonth) / 7) * 7;
+  const gridStart = new Date(Date.UTC(year, month - 1, 1 - firstWeekday, 12));
+
+  return Array.from({ length: totalCells }, (_, i) => {
+    const d = new Date(gridStart);
+    d.setUTCDate(d.getUTCDate() + i);
+    return d.toISOString().slice(0, 10);
+  });
+}
+
 interface BuildDaySlotsInput {
   dateKey: string; // yyyy-MM-dd, no fuso do mentor
   weekday: Weekday;

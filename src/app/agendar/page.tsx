@@ -162,13 +162,19 @@ export default async function AgendarPage({
           />
         )}
 
-        <div className="rounded-3xl border border-border bg-card p-6 shadow-sm sm:p-8">
-          <MentorPicker
-            mentors={mentors}
-            initialSlug={initialSlug}
-            hasUpcomingBooking={Boolean(upcomingBooking)}
-            weeklyLimitReached={weeklyLimitReached}
+        <div className="relative overflow-hidden rounded-3xl border border-border bg-card p-6 shadow-xl shadow-black/10 sm:p-8">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -top-24 right-0 size-64 rounded-full bg-accent/15 blur-3xl"
           />
+          <div className="relative">
+            <MentorPicker
+              mentors={mentors}
+              initialSlug={initialSlug}
+              hasUpcomingBooking={Boolean(upcomingBooking)}
+              weeklyLimitReached={weeklyLimitReached}
+            />
+          </div>
         </div>
       </div>
     </div>

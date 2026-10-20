@@ -134,29 +134,29 @@ export function MentorPicker({
 
       {selected && (
         <div key={selected.profile.id} className="space-y-6">
-          <div className="flex items-start gap-4 border-t border-border pt-5">
-            <Avatar className="size-14 border border-border">
+          <div className="flex flex-col items-center gap-3 border-t border-border/70 pt-6 text-center">
+            <Avatar className="size-20 border-2 border-accent/40 shadow-lg shadow-accent/10 ring-4 ring-accent/5">
               {selected.profile.avatar_url && (
                 <AvatarImage src={selected.profile.avatar_url} alt={selected.profile.full_name} />
               )}
-              <AvatarFallback className="bg-primary text-lg font-semibold text-primary-foreground">
+              <AvatarFallback className="bg-primary text-xl font-semibold text-primary-foreground">
                 {initials(selected.profile.full_name)}
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <h2 className="font-heading text-xl font-semibold tracking-tight">
+              <h2 className="font-heading text-2xl font-semibold tracking-tight">
                 {selected.profile.full_name}
               </h2>
               {selected.profile.headline && (
                 <p className="mt-1 text-sm text-muted-foreground">{selected.profile.headline}</p>
               )}
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Badge variant="outline" className="gap-1">
-                  <Clock className="size-3" /> {selected.profile.session_duration_minutes} min
+              <div className="mt-3 flex flex-wrap justify-center gap-2">
+                <Badge variant="secondary" className="gap-1.5 rounded-full px-3 py-1 text-[0.8rem]">
+                  <Clock className="size-3.5 text-accent" /> {selected.profile.session_duration_minutes} min
                 </Badge>
                 {selected.profile.meeting_location && (
-                  <Badge variant="outline" className="gap-1">
-                    <Video className="size-3" /> {selected.profile.meeting_location}
+                  <Badge variant="secondary" className="gap-1.5 rounded-full px-3 py-1 text-[0.8rem]">
+                    <Video className="size-3.5 text-accent" /> {selected.profile.meeting_location}
                   </Badge>
                 )}
               </div>

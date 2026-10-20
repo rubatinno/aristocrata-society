@@ -50,6 +50,14 @@ export function formatDateKeyFull(key: string): string {
   return formatFullDate(dateFromKey(key), "UTC");
 }
 
+/** "outubro de 2026", capitalizado — cabeçalho de navegação do calendário. */
+export function formatDateKeyMonthYear(key: string): string {
+  const label = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" }).format(
+    dateFromKey(key),
+  );
+  return label.replace(/^\w/, (c) => c.toUpperCase());
+}
+
 export function formatDateTime(date: Date, timeZone: string): string {
   const label = new Intl.DateTimeFormat("pt-BR", {
     weekday: "short",
