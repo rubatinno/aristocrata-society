@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { buttonVariants } from "@/components/ui/button";
 import {
   addMonthsToKey,
   buildDaySlots,
@@ -16,9 +18,49 @@ import {
 import { formatDateKeyDayNumber, formatDateKeyFull, formatDateKeyMonthYear, formatTime } from "@/lib/format";
 import { BookingDialog, readPendingBooking } from "@/components/booking/booking-dialog";
 import type { AvailabilityDate, AvailabilityRule, Profile } from "@/lib/types";
-import { CalendarX2, CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarX2, CheckCircle2, ChevronLeft, ChevronRight, Lock } from "lucide-react";
 
 const WEEKDAY_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+
+/** null = aprovado, com acesso normal aos horários. */
+export type GateReason = "anonymous" | "pending" | "rejected" | null;
+
+const GATE_COPY: Record<NonNullable<GateReason>, { title: string; description: string }> = {
+  anonymous: {
+    title: "Crie sua conta pra ver os horários",
+    description: "Os horários disponíveis só aparecem depois que você faz login ou cria sua conta de mentorado.",
+  },
+  pending: {
+    title: "Conta aguardando aprovação",
+    description:
+      "Sua conta ainda não foi aprovada por um mentor. Envie uma mensagem no grupo da mentoria solicitando acesso — assim que for aprovado, os horários aparecem aqui.",
+  },
+  rejected: {
+    title: "Acesso não aprovado",
+    description: "Seu acesso não foi aprovado. Envie um e-mail para o grupo da mentoria para mais informações.",
+  },
+};
+
+function GatePanel({ reason }: { reason: NonNullable<GateReason> }) {
+  const copy = GATE_COPY[reason];
+  return (
+    <div className="flex flex-col items-center gap-3 rounded-2xl border border-accent/30 bg-accent/10 p-6 text-center">
+      <Lock className="size-7 text-accent" />
+      <p className="text-base font-semibold">{copy.title}</p>
+      <p className="max-w-sm text-sm text-muted-foreground">{copy.description}</p>
+      {reason === "anonymous" && (
+        <div className="mt-1 flex flex-wrap justify-center gap-2">
+          <Link href="/login?next=/agendar" className={buttonVariants({ size: "sm" })}>
+            Entrar
+          </Link>
+          <Link href="/login?next=/agendar" className={buttonVariants({ variant: "outline", size: "sm" })}>
+            Criar conta
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function BookingFlow({
   profile,
@@ -28,6 +70,7 @@ export function BookingFlow({
   windowDays,
   hasUpcomingBooking = false,
   weeklyLimitReached = false,
+  gateReason = null,
 }: {
   profile: Profile;
   rules: AvailabilityRule[];
@@ -36,6 +79,7 @@ export function BookingFlow({
   windowDays: number;
   hasUpcomingBooking?: boolean;
   weeklyLimitReached?: boolean;
+  gateReason?: GateReason;
 }) {
   const dateKeys = useMemo(
     () => listCandidateDateKeys(windowDays, profile.timezone),
@@ -130,7 +174,7 @@ export function BookingFlow({
     );
   }
 
-  if (!hasAnySlot) {
+  if (!gateReason && !hasAnySlot) {
     return (
       <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border py-10 text-center">
         <CalendarX2 className="size-8 text-muted-foreground" />
@@ -146,7 +190,7 @@ export function BookingFlow({
 
   return (
     <div className="space-y-6">
-      {weeklyLimitReached && (
+      {weeklyLimitReached && !gateReason && (
         <div className="flex items-start gap-3 rounded-2xl border border-accent bg-accent/40 p-4 text-sm">
           <CalendarX2 className="mt-0.5 size-5 shrink-0 text-accent-foreground" />
           <p className="text-accent-foreground">
@@ -215,44 +259,50 @@ export function BookingFlow({
         </div>
       </div>
 
-      <div>
-        <p className="mb-2 text-xs font-medium text-muted-foreground">
-          {formatDateKeyFull(selectedDate)} · horários em {profile.timezone}
-        </p>
-        {daySlots.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-border py-6 text-center text-sm text-muted-foreground">
-            Sem horários livres neste dia.
+      {gateReason ? (
+        <GatePanel reason={gateReason} />
+      ) : (
+        <div>
+          <p className="mb-2 text-xs font-medium text-muted-foreground">
+            {formatDateKeyFull(selectedDate)} · horários em {profile.timezone}
           </p>
-        ) : (
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-            {daySlots.map((slot) => (
-              <button
-                key={slot.startsAt.toISOString()}
-                type="button"
-                disabled={slot.busy}
-                onClick={() => setSelectedSlot(slot)}
-                className={cn(
-                  "rounded-xl border py-2.5 text-sm font-medium transition-all",
-                  slot.busy
-                    ? "cursor-not-allowed border-border/50 text-muted-foreground/40 line-through"
-                    : "border-border hover:-translate-y-0.5 hover:border-primary hover:bg-accent/10 hover:shadow-md",
-                )}
-              >
-                {formatTime(slot.startsAt, profile.timezone)}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+          {daySlots.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-border py-6 text-center text-sm text-muted-foreground">
+              Sem horários livres neste dia.
+            </p>
+          ) : (
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+              {daySlots.map((slot) => (
+                <button
+                  key={slot.startsAt.toISOString()}
+                  type="button"
+                  disabled={slot.busy}
+                  onClick={() => setSelectedSlot(slot)}
+                  className={cn(
+                    "rounded-xl border py-2.5 text-sm font-medium transition-all",
+                    slot.busy
+                      ? "cursor-not-allowed border-border/50 text-muted-foreground/40 line-through"
+                      : "border-border hover:-translate-y-0.5 hover:border-primary hover:bg-accent/10 hover:shadow-md",
+                  )}
+                >
+                  {formatTime(slot.startsAt, profile.timezone)}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
-      <BookingDialog
-        slot={selectedSlot}
-        dateLabel={formatDateKeyFull(selectedDate)}
-        mentorId={profile.id}
-        timeZone={profile.timezone}
-        onOpenChange={(open) => !open && setSelectedSlot(null)}
-        onBooked={handleBooked}
-      />
+      {!gateReason && (
+        <BookingDialog
+          slot={selectedSlot}
+          dateLabel={formatDateKeyFull(selectedDate)}
+          mentorId={profile.id}
+          timeZone={profile.timezone}
+          onOpenChange={(open) => !open && setSelectedSlot(null)}
+          onBooked={handleBooked}
+        />
+      )}
     </div>
   );
 }

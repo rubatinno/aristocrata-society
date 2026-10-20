@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { BookingFlow } from "@/components/booking/booking-flow";
+import { BookingFlow, type GateReason } from "@/components/booking/booking-flow";
 import { createClient } from "@/lib/supabase/client";
 import type { BusyRange } from "@/lib/scheduling";
 import type { AvailabilityDate, AvailabilityRule, Profile } from "@/lib/types";
@@ -29,11 +29,13 @@ export function MentorPicker({
   initialSlug,
   hasUpcomingBooking = false,
   weeklyLimitReached = false,
+  gateReason = null,
 }: {
   mentors: MentorOption[];
   initialSlug?: string;
   hasUpcomingBooking?: boolean;
   weeklyLimitReached?: boolean;
+  gateReason?: GateReason;
 }) {
   const initialIndex = Math.max(
     0,
@@ -177,6 +179,7 @@ export function MentorPicker({
             windowDays={selected.profile.booking_window_days}
             hasUpcomingBooking={hasUpcomingBooking}
             weeklyLimitReached={weeklyLimitReached}
+            gateReason={gateReason}
           />
         </div>
       )}

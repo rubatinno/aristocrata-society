@@ -1,6 +1,7 @@
 import { addDays } from "date-fns";
 import { LogoMark } from "@/components/logo";
 import { MentorPicker, type MentorOption } from "@/components/booking/mentor-picker";
+import type { GateReason } from "@/components/booking/booking-flow";
 import { UpcomingBookingBanner } from "@/components/booking/upcoming-booking-banner";
 import { SupabaseSetupNotice } from "@/components/setup-notice";
 import { createClient } from "@/lib/supabase/server";
@@ -102,11 +103,15 @@ export default async function AgendarPage({
 
   // Mentor sem nenhum horário configurado nem aparece na lista pro
   // mentorado escolher — evita mostrar alguém sem nada disponível.
-  const mentors = mentorsWithEmpty.filter((m) => m.rules.length > 0 || m.dateRules.length > 0);
+  const mentorsWithAvailability = mentorsWithEmpty.filter((m) => m.rules.length > 0 || m.dateRules.length > 0);
 
   const menteeSession = await getMenteeSession();
   let upcomingBooking: { startsAt: string; mentorName: string; timezone: string } | null = null;
   let weeklyLimitReached = false;
+  // Sem login: pede pra registrar/entrar. Logado mas ainda não aprovado por
+  // um mentor: pede pra aguardar aprovação. Só mostramos horários de
+  // verdade pra quem já está aprovado.
+  let gateReason: GateReason = menteeSession ? null : "anonymous";
 
   if (menteeSession) {
     const admin = createAdminClient();
@@ -121,7 +126,7 @@ export default async function AgendarPage({
         .order("starts_at", { ascending: true })
         .limit(1)
         .maybeSingle(),
-      admin.from("approved_mentees").select("plan_id").eq("email", menteeSession.email).maybeSingle(),
+      admin.from("approved_mentees").select("plan_id, status").eq("email", menteeSession.email).maybeSingle(),
     ]);
 
     if (booking) {
@@ -138,6 +143,9 @@ export default async function AgendarPage({
       };
     }
 
+    if (!approval || approval.status === "pending") gateReason = "pending";
+    else if (approval.status === "rejected") gateReason = "rejected";
+
     let plan: Plan | null = null;
     if (approval?.plan_id) {
       const { data: planRow } = await admin.from("plans").select("*").eq("id", approval.plan_id).maybeSingle();
@@ -146,6 +154,15 @@ export default async function AgendarPage({
 
     weeklyLimitReached = await isWeeklyLimitReached(admin, menteeSession.email, plan, now);
   }
+
+  const canViewSlots = gateReason === null;
+
+  // Quem não pode ver horários (sem login, ou login ainda não aprovado) não
+  // recebe os dados reais de agenda/ocupação no HTML — só o perfil do
+  // mentor. O calendário aparece bloqueado porque não há nada pra mostrar.
+  const mentors = mentorsWithAvailability.map((m) =>
+    canViewSlots ? m : { ...m, rules: [], dateRules: [], busyRanges: [] },
+  );
 
   return (
     <div className="min-h-screen bg-muted/30 px-4 py-10 sm:px-6">
@@ -173,6 +190,7 @@ export default async function AgendarPage({
               initialSlug={initialSlug}
               hasUpcomingBooking={Boolean(upcomingBooking)}
               weeklyLimitReached={weeklyLimitReached}
+              gateReason={gateReason}
             />
           </div>
         </div>
