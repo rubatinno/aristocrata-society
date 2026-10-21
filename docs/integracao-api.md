@@ -21,7 +21,60 @@ importa se quem chamou foi a tela de agendamento ou essa API. Se um
 horário já foi ocupado — por qualquer um dos dois lados — o outro recebe
 erro na hora, nunca um agendamento duplicado.
 
-## Autenticação
+## Duas formas de integrar — escolha uma
+
+Existem dois jeitos de ligar a área de membros a esse agendamento.
+**Não precisa usar os dois** — escolha o que fizer mais sentido:
+
+### Opção A — Linkar/embutir a tela já pronta (mesma interface, menos trabalho)
+
+Se a ideia é o mentorado ver **exatamente a mesma tela** que já existe hoje
+(`/agendar`), sem o outro sistema desenhar nada do zero, basta um link:
+
+```
+https://societyagendamentos.app/agendar?mentor=<slug-do-mentor>
+```
+
+O parâmetro `?mentor=` é opcional — pré-seleciona um mentor específico
+(o `slug` vem de `GET /mentors`, campo `slug`). Sem ele, o mentorado escolhe
+entre os mentores disponíveis.
+
+Duas formas de usar esse link:
+
+- **Botão/link que abre em nova aba** (`target="_blank"` ou
+  `window.open(...)`) — é o jeito mais simples e mais confiável. Zero
+  trabalho de integração, funciona igual em qualquer navegador.
+- **`<iframe>` embutido na própria página** da área de membros, pra parecer
+  que nunca saiu do site:
+  ```html
+  <iframe
+    src="https://societyagendamentos.app/agendar?mentor=<slug>"
+    style="width: 100%; height: 800px; border: 0;"
+    title="Agendar mentoria"
+  ></iframe>
+  ```
+  **Atenção com essa opção**: o login do mentorado dentro do agendamento
+  depende de cookie — e navegadores modernos (Safari por padrão, Chrome em
+  parte dos casos) bloqueiam cookie de terceiro dentro de iframe entre
+  domínios diferentes. Na prática, isso pode fazer o mentorado precisar
+  logar de novo toda vez, ou o login simplesmente não "grudar" dentro do
+  iframe em alguns navegadores. Testem em Safari antes de depender disso —
+  se der problema, o link em nova aba (acima) resolve sem essa limitação.
+
+Com a Opção A, essa API (endpoints abaixo) **não é necessária** — o
+agendamento inteiro acontece dentro da tela que já existe.
+
+### Opção B — Chamar a API e construir a própria tela
+
+Se a ideia é o mentorado agendar **sem sair da interface da área de
+membros**, com visual próprio, o outro sistema usa os endpoints abaixo pra
+buscar disponibilidade e criar o agendamento por trás dos panos. Dá mais
+liberdade de design, mas é todo o trabalho de tela (calendário, formulário
+etc.) por conta de quem integrar.
+
+---
+
+## Autenticação (só necessária pra Opção B)
 
 Toda chamada precisa do header:
 
