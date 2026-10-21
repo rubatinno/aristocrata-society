@@ -2,11 +2,14 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import type { AvailabilityDate } from "@/lib/types";
 import { saveDateOverrides, type DateOverrideInput } from "@/app/dashboard/disponibilidade/date-actions";
-import { Check, Loader2, Pencil, Plus, X, CalendarPlus, Trash2, Filter } from "lucide-react";
+import { Check, Loader2, Pencil, Plus, X, CalendarPlus, Trash2, Filter, Clock, Minus, CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Block = {
@@ -32,6 +35,14 @@ function todayKey() {
   const month = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+/** Rótulo "Quarta-feira, 21 de out." a partir de um dateKey, sem depender do
+ * fuso local do navegador (âncora em meio-dia UTC). */
+function formatDateLabel(dateKey: string): string {
+  const anchor = new Date(`${dateKey}T12:00:00Z`);
+  const label = format(anchor, "EEEE, d 'de' MMM", { locale: ptBR });
+  return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
 /** Horário de término sugerido: 1h depois do início, sem passar de 23:59. */
@@ -161,62 +172,73 @@ export function DateOverridesEditor({ initialDates }: { initialDates: Availabili
   return (
     <div className="space-y-4">
       {entries.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-border py-8 text-center text-sm text-muted-foreground">
-          Nenhum horário avulso cadastrado.
-        </p>
+        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border py-10 text-center">
+          <CalendarDays className="size-6 text-muted-foreground/60" />
+          <p className="text-sm text-muted-foreground">Nenhum horário avulso cadastrado.</p>
+        </div>
       ) : (
         <div className="space-y-3">
           {sortedEntries.map((entry) => (
-            <div key={entry.id} className="rounded-2xl border border-border bg-card p-4">
-              <div className="flex items-center gap-2">
-                <Input
-                  type="date"
-                  min={todayKey()}
-                  value={entry.date}
-                  onChange={(e) => updateDate(entry.id, e.target.value)}
-                  className="w-44"
-                />
+            <div
+              key={entry.id}
+              className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm shadow-black/5"
+            >
+              <div className="flex items-center gap-3 border-b border-border bg-muted/20 px-4 py-3">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary/30 via-primary/10 to-transparent ring-1 ring-primary/30">
+                  <CalendarDays className="size-4 text-primary" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-foreground">{formatDateLabel(entry.date)}</p>
+                  <Input
+                    type="date"
+                    min={todayKey()}
+                    value={entry.date}
+                    onChange={(e) => updateDate(entry.id, e.target.value)}
+                    className="mt-0.5 h-6 w-36 border-0 bg-transparent p-0 text-xs text-muted-foreground focus-visible:ring-0"
+                  />
+                </div>
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon-sm"
                   onClick={() => removeDate(entry.id)}
-                  className="ml-auto text-muted-foreground hover:text-destructive"
+                  className="ml-auto shrink-0 text-muted-foreground hover:text-destructive"
+                  title="Remover data"
                 >
                   <X className="size-4" />
                 </Button>
               </div>
 
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="space-y-2 p-4">
                 {entry.blocks.map((block) =>
                   block.editing ? (
-                    <div
-                      key={block.id}
-                      className="flex flex-col gap-2 rounded-xl border border-border bg-muted/30 p-2"
-                    >
+                    <div key={block.id} className="space-y-2 rounded-xl border border-border bg-muted/20 p-3">
                       <div className="flex items-center gap-2">
-                        <Input
-                          type="time"
-                          value={block.start}
-                          onChange={(e) => {
-                            const start = e.target.value;
-                            updateBlock(entry.id, block.id, { start, end: addOneHour(start) });
-                          }}
-                          className="w-32"
-                        />
-                        <span className="text-sm text-muted-foreground">até</span>
-                        <Input
-                          type="time"
-                          value={block.end}
-                          onChange={(e) => updateBlock(entry.id, block.id, { end: e.target.value })}
-                          className="w-32"
-                        />
+                        <div className="flex flex-1 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5">
+                          <Clock className="size-3.5 shrink-0 text-muted-foreground" />
+                          <Input
+                            type="time"
+                            value={block.start}
+                            onChange={(e) => {
+                              const start = e.target.value;
+                              updateBlock(entry.id, block.id, { start, end: addOneHour(start) });
+                            }}
+                            className="h-6 w-auto flex-1 border-0 bg-transparent p-0 text-sm font-medium focus-visible:ring-0"
+                          />
+                          <span className="shrink-0 text-xs text-muted-foreground">até</span>
+                          <Input
+                            type="time"
+                            value={block.end}
+                            onChange={(e) => updateBlock(entry.id, block.id, { end: e.target.value })}
+                            className="h-6 w-auto flex-1 border-0 bg-transparent p-0 text-sm font-medium focus-visible:ring-0"
+                          />
+                        </div>
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon-sm"
                           onClick={() => setBlockEditing(entry.id, block.id, false)}
-                          className="text-success hover:text-success"
+                          className="shrink-0 text-success hover:text-success"
                           title="Confirmar"
                         >
                           <Check className="size-4" />
@@ -226,38 +248,74 @@ export function DateOverridesEditor({ initialDates }: { initialDates: Availabili
                           variant="ghost"
                           size="icon-sm"
                           onClick={() => removeBlock(entry.id, block.id)}
-                          className="text-muted-foreground hover:text-destructive"
+                          className="shrink-0 text-muted-foreground hover:text-destructive"
                           title="Excluir"
                         >
                           <Trash2 className="size-4" />
                         </Button>
                       </div>
-                      <div className="flex items-center gap-1.5 pl-1">
-                        <Filter className="size-3.5 shrink-0 text-muted-foreground" />
-                        <label className="text-xs text-muted-foreground">Só pra quem está na</label>
-                        <Input
-                          type="text"
-                          inputMode="numeric"
-                          value={block.requiredCallNumber ?? ""}
-                          onChange={(e) => {
-                            const digits = e.target.value.replace(/[^0-9]/g, "");
-                            updateBlock(entry.id, block.id, {
-                              requiredCallNumber: digits === "" ? null : Number(digits),
-                            });
-                          }}
-                          placeholder="qualquer"
-                          className="h-7 w-16 text-center text-xs"
+
+                      <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <Filter className="size-3.5 shrink-0 text-muted-foreground" />
+                          <span className="text-xs font-medium text-foreground">Restringir por nº da chamada</span>
+                        </div>
+                        <Switch
+                          checked={block.requiredCallNumber != null}
+                          onCheckedChange={(checked) =>
+                            updateBlock(entry.id, block.id, { requiredCallNumber: checked ? 2 : null })
+                          }
                         />
-                        <label className="text-xs text-muted-foreground">ª chamada (deixe vazio pra todo mundo)</label>
                       </div>
+
+                      {block.requiredCallNumber != null && (
+                        <div className="flex items-center justify-between gap-3 rounded-lg border border-accent/30 bg-accent/5 px-3 py-2">
+                          <span className="text-xs text-muted-foreground">Só quem está na</span>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon-xs"
+                              onClick={() =>
+                                updateBlock(entry.id, block.id, {
+                                  requiredCallNumber: Math.max(1, (block.requiredCallNumber ?? 1) - 1),
+                                })
+                              }
+                              className="rounded-full"
+                              title="Diminuir"
+                            >
+                              <Minus className="size-3" />
+                            </Button>
+                            <span className="w-5 text-center text-sm font-semibold tabular-nums text-accent">
+                              {block.requiredCallNumber}
+                            </span>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon-xs"
+                              onClick={() =>
+                                updateBlock(entry.id, block.id, {
+                                  requiredCallNumber: (block.requiredCallNumber ?? 1) + 1,
+                                })
+                              }
+                              className="rounded-full"
+                              title="Aumentar"
+                            >
+                              <Plus className="size-3" />
+                            </Button>
+                          </div>
+                          <span className="text-xs text-muted-foreground">ª chamada</span>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div
                       key={block.id}
                       className={cn(
-                        "flex items-center gap-2 rounded-xl border border-border bg-muted/30 px-3 py-2 text-sm font-medium",
+                        "flex items-center gap-2 rounded-xl border border-border bg-muted/20 px-3 py-2.5 text-sm font-medium",
                       )}
                     >
+                      <Clock className="size-3.5 shrink-0 text-muted-foreground" />
                       <span>
                         {block.start} até {block.end}
                       </span>
@@ -266,39 +324,42 @@ export function DateOverridesEditor({ initialDates }: { initialDates: Availabili
                           <Filter className="size-3" /> Só {block.requiredCallNumber}ª chamada
                         </span>
                       )}
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => setBlockEditing(entry.id, block.id, true)}
-                        className="text-muted-foreground hover:text-foreground"
-                        title="Editar"
-                      >
-                        <Pencil className="size-3.5" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => removeBlock(entry.id, block.id)}
-                        className="text-muted-foreground hover:text-destructive"
-                        title="Excluir"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </Button>
+                      <div className="ml-auto flex items-center gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => setBlockEditing(entry.id, block.id, true)}
+                          className="text-muted-foreground hover:text-foreground"
+                          title="Editar"
+                        >
+                          <Pencil className="size-3.5" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => removeBlock(entry.id, block.id)}
+                          className="text-muted-foreground hover:text-destructive"
+                          title="Excluir"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </div>
                     </div>
                   ),
                 )}
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => addBlock(entry.id)}
+                  className="w-fit gap-1.5 text-primary hover:text-primary"
+                >
+                  <Plus className="size-3.5" /> Adicionar horário
+                </Button>
               </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => addBlock(entry.id)}
-                className="mt-2 w-fit gap-1.5 text-primary hover:text-primary"
-              >
-                <Plus className="size-3.5" /> Adicionar horário
-              </Button>
             </div>
           ))}
         </div>
