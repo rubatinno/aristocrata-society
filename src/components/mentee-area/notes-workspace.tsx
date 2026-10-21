@@ -2,14 +2,24 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { createNote, deleteNote, updateNote } from "@/app/agendar/anotacoes/actions";
-import { RichNoteEditor } from "@/components/mentee-area/rich-note-editor";
 import { createClient } from "@/lib/supabase/client";
 import type { MenteeNote } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Loader2, NotebookPen, Plus, Trash2 } from "lucide-react";
+
+// O editor (Tiptap/ProseMirror) é pesado e só é usado aqui — carregá-lo sob
+// demanda tira esse bundle do chunk inicial da página.
+const RichNoteEditor = dynamic(
+  () => import("@/components/mentee-area/rich-note-editor").then((mod) => mod.RichNoteEditor),
+  {
+    ssr: false,
+    loading: () => <div className="min-h-0 flex-1 animate-pulse bg-muted/20" />,
+  },
+);
 
 function formatUpdated(iso: string) {
   return new Intl.DateTimeFormat("pt-BR", {
