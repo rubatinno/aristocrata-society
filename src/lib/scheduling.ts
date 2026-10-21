@@ -34,6 +34,12 @@ export function weekdayFromDateKey(key: string): Weekday {
   return new Date(`${key}T12:00:00Z`).getUTCDay() as Weekday;
 }
 
+/** `required` null = horário aberto pra qualquer mentorado. Caso contrário,
+ * só bate com quem está exatamente nessa Nª chamada. */
+export function matchesCallNumber(required: number | null, menteeCallNumber: number): boolean {
+  return required === null || required === menteeCallNumber;
+}
+
 /** Próximos `days` dias, como dateKeys (yyyy-MM-dd), no calendário do mentor. */
 export function listCandidateDateKeys(days: number, timeZone: string, from: Date = new Date()): string[] {
   const todayKey = dateKey(from, timeZone);

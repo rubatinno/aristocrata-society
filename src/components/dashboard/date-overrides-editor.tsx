@@ -6,10 +6,17 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import type { AvailabilityDate } from "@/lib/types";
 import { saveDateOverrides, type DateOverrideInput } from "@/app/dashboard/disponibilidade/date-actions";
-import { Check, Loader2, Pencil, Plus, X, CalendarPlus, Trash2 } from "lucide-react";
+import { Check, Loader2, Pencil, Plus, X, CalendarPlus, Trash2, Filter } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type Block = { id: string; start: string; end: string; editing: boolean };
+type Block = {
+  id: string;
+  start: string;
+  end: string;
+  editing: boolean;
+  /** null = aberto pra qualquer mentorado. N = só quem está na Nª chamada. */
+  requiredCallNumber: number | null;
+};
 type DateEntry = { id: string; date: string; blocks: Block[] };
 
 function makeId() {
@@ -46,6 +53,7 @@ function buildInitialState(dates: AvailabilityDate[]): DateEntry[] {
       start: row.start_time.slice(0, 5),
       end: row.end_time.slice(0, 5),
       editing: false,
+      requiredCallNumber: row.required_call_number,
     });
     byDate.set(row.date, blocks);
   }
@@ -78,7 +86,7 @@ export function DateOverridesEditor({ initialDates }: { initialDates: Availabili
       {
         id: makeId(),
         date: todayKey(),
-        blocks: [{ id: makeId(), start: "09:00", end: "10:00", editing: true }],
+        blocks: [{ id: makeId(), start: "09:00", end: "10:00", editing: true, requiredCallNumber: null }],
       },
     ]);
   }
@@ -95,7 +103,13 @@ export function DateOverridesEditor({ initialDates }: { initialDates: Availabili
     setEntries((prev) =>
       prev.map((e) =>
         e.id === entryId
-          ? { ...e, blocks: [...e.blocks, { id: makeId(), start: "09:00", end: "10:00", editing: true }] }
+          ? {
+              ...e,
+              blocks: [
+                ...e.blocks,
+                { id: makeId(), start: "09:00", end: "10:00", editing: true, requiredCallNumber: null },
+              ],
+            }
           : e,
       ),
     );
@@ -127,6 +141,7 @@ export function DateOverridesEditor({ initialDates }: { initialDates: Availabili
         date: entry.date,
         start_time: block.start,
         end_time: block.end,
+        required_call_number: block.requiredCallNumber,
       })),
     );
 
@@ -177,44 +192,64 @@ export function DateOverridesEditor({ initialDates }: { initialDates: Availabili
                   block.editing ? (
                     <div
                       key={block.id}
-                      className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 p-2"
+                      className="flex flex-col gap-2 rounded-xl border border-border bg-muted/30 p-2"
                     >
-                      <Input
-                        type="time"
-                        value={block.start}
-                        onChange={(e) => {
-                          const start = e.target.value;
-                          updateBlock(entry.id, block.id, { start, end: addOneHour(start) });
-                        }}
-                        className="w-32"
-                      />
-                      <span className="text-sm text-muted-foreground">até</span>
-                      <Input
-                        type="time"
-                        value={block.end}
-                        onChange={(e) => updateBlock(entry.id, block.id, { end: e.target.value })}
-                        className="w-32"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => setBlockEditing(entry.id, block.id, false)}
-                        className="text-success hover:text-success"
-                        title="Confirmar"
-                      >
-                        <Check className="size-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => removeBlock(entry.id, block.id)}
-                        className="text-muted-foreground hover:text-destructive"
-                        title="Excluir"
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="time"
+                          value={block.start}
+                          onChange={(e) => {
+                            const start = e.target.value;
+                            updateBlock(entry.id, block.id, { start, end: addOneHour(start) });
+                          }}
+                          className="w-32"
+                        />
+                        <span className="text-sm text-muted-foreground">até</span>
+                        <Input
+                          type="time"
+                          value={block.end}
+                          onChange={(e) => updateBlock(entry.id, block.id, { end: e.target.value })}
+                          className="w-32"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => setBlockEditing(entry.id, block.id, false)}
+                          className="text-success hover:text-success"
+                          title="Confirmar"
+                        >
+                          <Check className="size-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => removeBlock(entry.id, block.id)}
+                          className="text-muted-foreground hover:text-destructive"
+                          title="Excluir"
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </div>
+                      <div className="flex items-center gap-1.5 pl-1">
+                        <Filter className="size-3.5 shrink-0 text-muted-foreground" />
+                        <label className="text-xs text-muted-foreground">Só pra quem está na</label>
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          value={block.requiredCallNumber ?? ""}
+                          onChange={(e) => {
+                            const digits = e.target.value.replace(/[^0-9]/g, "");
+                            updateBlock(entry.id, block.id, {
+                              requiredCallNumber: digits === "" ? null : Number(digits),
+                            });
+                          }}
+                          placeholder="qualquer"
+                          className="h-7 w-16 text-center text-xs"
+                        />
+                        <label className="text-xs text-muted-foreground">ª chamada (deixe vazio pra todo mundo)</label>
+                      </div>
                     </div>
                   ) : (
                     <div
@@ -226,6 +261,11 @@ export function DateOverridesEditor({ initialDates }: { initialDates: Availabili
                       <span>
                         {block.start} até {block.end}
                       </span>
+                      {block.requiredCallNumber != null && (
+                        <span className="flex items-center gap-1 rounded-full bg-accent/15 px-2 py-0.5 text-xs font-medium text-accent">
+                          <Filter className="size-3" /> Só {block.requiredCallNumber}ª chamada
+                        </span>
+                      )}
                       <Button
                         type="button"
                         variant="ghost"

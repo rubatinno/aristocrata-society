@@ -8,6 +8,8 @@ export interface DateOverrideInput {
   date: string; // yyyy-MM-dd
   start_time: string;
   end_time: string;
+  /** null = aberto pra qualquer mentorado. N = só quem está na Nª chamada. */
+  required_call_number: number | null;
 }
 
 export async function saveDateOverrides(overrides: DateOverrideInput[]) {
@@ -57,6 +59,7 @@ export async function saveDateOverrides(overrides: DateOverrideInput[]) {
         start_time: row.start_time,
         end_time: row.end_time,
         is_active: true,
+        required_call_number: row.required_call_number,
       })),
     );
 

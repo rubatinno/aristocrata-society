@@ -83,6 +83,8 @@ export type AvailabilityRule = {
   start_time: string; // "09:00:00"
   end_time: string; // "18:00:00"
   is_active: boolean;
+  /** null = aberto pra qualquer mentorado. N = só quem está na Nª chamada (1ª, 2ª...). */
+  required_call_number: number | null;
 };
 
 export type Plan = {
@@ -252,6 +254,8 @@ export type AvailabilityDate = {
   start_time: string; // "09:00:00"
   end_time: string; // "18:00:00"
   is_active: boolean;
+  /** null = aberto pra qualquer mentorado. N = só quem está na Nª chamada (1ª, 2ª...). */
+  required_call_number: number | null;
 };
 
 export type Booking = {
@@ -287,13 +291,19 @@ export type Database = {
       };
       availability_rules: {
         Row: AvailabilityRule;
-        Insert: Omit<AvailabilityRule, "id"> & { id?: string };
+        Insert: Omit<AvailabilityRule, "id" | "required_call_number"> & {
+          id?: string;
+          required_call_number?: number | null;
+        };
         Update: Partial<AvailabilityRule>;
         Relationships: [];
       };
       availability_dates: {
         Row: AvailabilityDate;
-        Insert: Omit<AvailabilityDate, "id"> & { id?: string };
+        Insert: Omit<AvailabilityDate, "id" | "required_call_number"> & {
+          id?: string;
+          required_call_number?: number | null;
+        };
         Update: Partial<AvailabilityDate>;
         Relationships: [];
       };

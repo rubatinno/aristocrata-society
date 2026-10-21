@@ -9,7 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { getMenteeSession } from "@/app/agendar/mentee-actions";
 import { isWeeklyLimitReached } from "@/lib/booking-limits";
-import { dateKey } from "@/lib/scheduling";
+import { dateKey, matchesCallNumber } from "@/lib/scheduling";
 import type { AvailabilityDate, AvailabilityRule, Plan, Profile } from "@/lib/types";
 
 export default async function AgendarPage({
@@ -101,10 +101,6 @@ export default async function AgendarPage({
     }),
   );
 
-  // Mentor sem nenhum horário configurado nem aparece na lista pro
-  // mentorado escolher — evita mostrar alguém sem nada disponível.
-  const mentorsWithAvailability = mentorsWithEmpty.filter((m) => m.rules.length > 0 || m.dateRules.length > 0);
-
   const menteeSession = await getMenteeSession();
   let upcomingBooking: { startsAt: string; mentorName: string; timezone: string } | null = null;
   let weeklyLimitReached = false;
@@ -112,11 +108,16 @@ export default async function AgendarPage({
   // um mentor: pede pra aguardar aprovação. Só mostramos horários de
   // verdade pra quem já está aprovado.
   let gateReason: GateReason = menteeSession ? null : "anonymous";
+  // Quantas chamadas (concluídas ou "não compareceu") o mentorado já teve,
+  // com qualquer mentor, mais 1 — define se ele está na 1ª, 2ª, 3ª chamada
+  // etc. Horários com `required_call_number` só aparecem pra quem está
+  // exatamente nesse número; sem restrição (null), aparecem pra todo mundo.
+  let menteeCallNumber = 1;
 
   if (menteeSession) {
     const admin = createAdminClient();
 
-    const [{ data: booking }, { data: approval }] = await Promise.all([
+    const [{ data: booking }, { data: approval }, { count: completedCount }] = await Promise.all([
       admin
         .from("bookings")
         .select("starts_at, mentor_id")
@@ -127,7 +128,14 @@ export default async function AgendarPage({
         .limit(1)
         .maybeSingle(),
       admin.from("approved_mentees").select("plan_id, status").eq("email", menteeSession.email).maybeSingle(),
+      admin
+        .from("bookings")
+        .select("id", { count: "exact", head: true })
+        .eq("mentee_email", menteeSession.email)
+        .in("status", ["concluida", "no_show"]),
     ]);
+
+    menteeCallNumber = (completedCount ?? 0) + 1;
 
     if (booking) {
       const { data: mentorProfile } = await admin
@@ -157,12 +165,25 @@ export default async function AgendarPage({
 
   const canViewSlots = gateReason === null;
 
-  // Quem não pode ver horários (sem login, ou login ainda não aprovado) não
-  // recebe os dados reais de agenda/ocupação no HTML — só o perfil do
-  // mentor. O calendário aparece bloqueado porque não há nada pra mostrar.
-  const mentors = mentorsWithAvailability.map((m) =>
-    canViewSlots ? m : { ...m, rules: [], dateRules: [], busyRanges: [] },
-  );
+  // Mentor sem nenhum horário disponível pra ESSE mentorado específico (seja
+  // porque não tem nada configurado, seja porque tudo que ele tem é
+  // restrito a outra chamada) nem aparece na lista — evita mostrar alguém
+  // sem nada que ele possa realmente marcar.
+  const mentors = mentorsWithEmpty
+    .map((m) =>
+      canViewSlots
+        ? {
+            ...m,
+            rules: m.rules.filter((r) => matchesCallNumber(r.required_call_number, menteeCallNumber)),
+            dateRules: m.dateRules.filter((d) => matchesCallNumber(d.required_call_number, menteeCallNumber)),
+          }
+        : m,
+    )
+    .filter((m) => m.rules.length > 0 || m.dateRules.length > 0)
+    // Quem não pode ver horários (sem login, ou login ainda não aprovado)
+    // não recebe os dados reais de agenda/ocupação no HTML — só o perfil do
+    // mentor. O calendário aparece bloqueado porque não há nada pra mostrar.
+    .map((m) => (canViewSlots ? m : { ...m, rules: [], dateRules: [], busyRanges: [] }));
 
   return (
     <div className="min-h-screen bg-muted/30 px-4 py-10 sm:px-6">

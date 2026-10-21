@@ -1,10 +1,12 @@
 "use server";
 
 import { startOfWeek, startOfMonth, endOfMonth, addDays } from "date-fns";
+import { fromZonedTime } from "date-fns-tz";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isMenteeProfileComplete, type Plan } from "@/lib/types";
 import { createCalendarEvent, getMentorAccessToken } from "@/lib/google-calendar";
+import { dateKey, matchesCallNumber, weekdayFromDateKey } from "@/lib/scheduling";
 
 export interface CreateBookingInput {
   mentorId: string;
@@ -221,6 +223,58 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
           ? "Só é permitida uma mentoria por semana. Você já tem uma chamada marcada nesta semana — você poderá marcar a próxima a partir de domingo."
           : `Você atingiu o limite de ${weeklyLimit} chamadas por semana do seu plano. Você poderá marcar novamente a partir de domingo.`,
     };
+  }
+
+  // Confere de novo no servidor se o mentorado está na chamada certa pra
+  // esse horário — o cliente já só mostra o que é elegível, isso é só pra
+  // não confiar cegamente numa chamada direta da action.
+  const { data: mentorForEligibility } = await admin
+    .from("profiles")
+    .select("timezone, recurring_enabled")
+    .eq("id", input.mentorId)
+    .maybeSingle();
+
+  if (mentorForEligibility) {
+    const { count: completedCount } = await admin
+      .from("bookings")
+      .select("id", { count: "exact", head: true })
+      .eq("mentee_email", menteeEmail)
+      .in("status", ["concluida", "no_show"]);
+    const menteeCallNumber = (completedCount ?? 0) + 1;
+
+    const requestedDateKey = dateKey(requestedStart, mentorForEligibility.timezone);
+    const requestedWeekday = weekdayFromDateKey(requestedDateKey);
+
+    const [{ data: dateWindows }, { data: ruleWindows }] = await Promise.all([
+      admin
+        .from("availability_dates")
+        .select("start_time, end_time, required_call_number")
+        .eq("mentor_id", input.mentorId)
+        .eq("date", requestedDateKey)
+        .eq("is_active", true),
+      mentorForEligibility.recurring_enabled
+        ? admin
+            .from("availability_rules")
+            .select("start_time, end_time, required_call_number")
+            .eq("mentor_id", input.mentorId)
+            .eq("weekday", requestedWeekday)
+            .eq("is_active", true)
+        : Promise.resolve({ data: [] }),
+    ]);
+
+    const eligible = [...(dateWindows ?? []), ...(ruleWindows ?? [])].some((w) => {
+      if (!matchesCallNumber(w.required_call_number, menteeCallNumber)) return false;
+      const windowStart = fromZonedTime(`${requestedDateKey}T${w.start_time}`, mentorForEligibility.timezone);
+      const windowEnd = fromZonedTime(`${requestedDateKey}T${w.end_time}`, mentorForEligibility.timezone);
+      return requestedStart >= windowStart && requestedStart < windowEnd;
+    });
+
+    if (!eligible) {
+      return {
+        ok: false,
+        message: "Esse horário não está mais disponível pro seu momento atual de mentoria. Escolha outro.",
+      };
+    }
   }
 
   // Checagem otimista de horário livre; a garantia real contra corrida é a
