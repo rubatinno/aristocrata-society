@@ -7,7 +7,7 @@ import { SupabaseSetupNotice } from "@/components/setup-notice";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
-import { getMenteeSession } from "@/app/agendar/mentee-actions";
+import { getMenteeSession } from "@/lib/mentee-session";
 import { isWeeklyLimitReached } from "@/lib/booking-limits";
 import { dateKey, matchesCallNumber } from "@/lib/scheduling";
 import type { AvailabilityDate, AvailabilityRule, Plan, Profile } from "@/lib/types";

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getMenteeSession } from "@/app/agendar/mentee-actions";
+import { getMenteeIdentity } from "@/lib/mentee-session";
 import { listMenteeProducts, listProductCreatives } from "@/app/agendar/produtos/actions";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { SupabaseSetupNotice } from "@/components/setup-notice";
@@ -10,21 +10,21 @@ export default async function MenteeProductsPage() {
     return <SupabaseSetupNotice />;
   }
 
-  const session = await getMenteeSession();
-  if (!session) {
+  const identity = await getMenteeIdentity();
+  if (!identity) {
     redirect("/login?next=/agendar/produtos");
   }
 
   const [products, creatives] = await Promise.all([
-    listMenteeProducts(session.userId),
-    listProductCreatives(session.userId),
+    listMenteeProducts(identity.userId),
+    listProductCreatives(identity.userId),
   ]);
 
   return (
     <ProdutosWorkspace
       initialProducts={products}
       initialCreatives={creatives}
-      menteeId={session.userId}
+      menteeId={identity.userId}
       revalidateTarget="/agendar/produtos"
       className="h-[calc(100vh-4rem)]"
     />

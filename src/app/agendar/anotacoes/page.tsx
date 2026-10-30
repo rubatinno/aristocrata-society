@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getMenteeSession } from "@/app/agendar/mentee-actions";
+import { getMenteeIdentity } from "@/lib/mentee-session";
 import { listMenteeNotes } from "@/app/agendar/anotacoes/actions";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { SupabaseSetupNotice } from "@/components/setup-notice";
@@ -10,17 +10,19 @@ export default async function MenteeNotesPage() {
     return <SupabaseSetupNotice />;
   }
 
-  const session = await getMenteeSession();
-  if (!session) {
+  // Só o id de quem está logado — vem do header que o proxy já validou, sem
+  // uma consulta a mentee_profiles só pra isso.
+  const identity = await getMenteeIdentity();
+  if (!identity) {
     redirect("/login?next=/agendar/anotacoes");
   }
 
-  const notes = await listMenteeNotes(session.userId);
+  const notes = await listMenteeNotes(identity.userId);
 
   return (
     <NotesWorkspace
       initialNotes={notes}
-      menteeId={session.userId}
+      menteeId={identity.userId}
       revalidateTarget="/agendar/anotacoes"
       className="h-[calc(100vh-4rem)]"
     />

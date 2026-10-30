@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getMenteeSession } from "@/app/agendar/mentee-actions";
+import { getMenteeIdentity } from "@/lib/mentee-session";
 import { listMenteeGoals } from "@/app/agendar/progresso/actions";
 import { GoalsWorkspace } from "@/components/mentee-area/goals-workspace";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
@@ -10,12 +10,12 @@ export default async function ProgressoPage() {
     return <SupabaseSetupNotice />;
   }
 
-  const session = await getMenteeSession();
-  if (!session) {
+  const identity = await getMenteeIdentity();
+  if (!identity) {
     redirect("/login?next=/agendar/progresso");
   }
 
-  const goals = await listMenteeGoals(session.userId);
+  const goals = await listMenteeGoals(identity.userId);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
@@ -27,7 +27,7 @@ export default async function ProgressoPage() {
       </div>
       <GoalsWorkspace
         initialGoals={goals}
-        menteeId={session.userId}
+        menteeId={identity.userId}
         revalidateTarget="/agendar/progresso"
         canManage={false}
         className="px-0"

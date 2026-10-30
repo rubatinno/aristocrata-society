@@ -1,5 +1,6 @@
 import { isSupabaseConfigured } from "@/lib/supabase/env";
-import { getMenteeSession, stopViewAsMentee } from "@/app/agendar/mentee-actions";
+import { stopViewAsMentee } from "@/app/agendar/mentee-actions";
+import { getMenteeSession } from "@/lib/mentee-session";
 import { MenteeSidebar } from "@/components/mentee-area/sidebar";
 import { MenteeMobileNav } from "@/components/mentee-area/mobile-nav";
 import { MenteeTopbar } from "@/components/mentee-area/topbar";

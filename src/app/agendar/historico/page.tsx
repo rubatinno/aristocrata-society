@@ -1,11 +1,13 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { addDays } from "date-fns";
 import { CalendarClock, History } from "lucide-react";
-import { getMenteeSession } from "@/app/agendar/mentee-actions";
+import { getMenteeIdentity } from "@/lib/mentee-session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { SupabaseSetupNotice } from "@/components/setup-notice";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatDateTime, formatFullDate } from "@/lib/format";
 import type { Booking, BookingStatus, Plan, Profile } from "@/lib/types";
 
@@ -23,13 +25,44 @@ const STATUS_VARIANT: Record<BookingStatus, "default" | "outline" | "destructive
   no_show: "secondary",
 };
 
-export default async function MenteeHistoricoPage() {
+export default function MenteeHistoricoPage() {
   if (!isSupabaseConfigured) {
     return <SupabaseSetupNotice />;
   }
 
-  const session = await getMenteeSession();
-  if (!session) {
+  // Cabeçalho na hora; o resto chega quando o Supabase responder.
+  return (
+    <div className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6">
+      <div>
+        <h1 className="font-heading text-3xl font-semibold tracking-tight">Histórico</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Suas mentorias realizadas e o status do seu acesso.
+        </p>
+      </div>
+
+      <Suspense fallback={<HistoricoSkeleton />}>
+        <HistoricoConteudo />
+      </Suspense>
+    </div>
+  );
+}
+
+function HistoricoSkeleton() {
+  return (
+    <>
+      <Skeleton className="h-28 w-full rounded-2xl" />
+      <div className="space-y-2">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-16 w-full rounded-xl" />
+        <Skeleton className="h-16 w-full rounded-xl" />
+      </div>
+    </>
+  );
+}
+
+async function HistoricoConteudo() {
+  const identity = await getMenteeIdentity();
+  if (!identity) {
     redirect("/login?next=/agendar/historico");
   }
 
@@ -39,27 +72,30 @@ export default async function MenteeHistoricoPage() {
     admin
       .from("bookings")
       .select("*")
-      .eq("mentee_id", session.userId)
+      .eq("mentee_id", identity.userId)
       .order("starts_at", { ascending: false }),
-    admin.from("approved_mentees").select("*").eq("email", session.email).maybeSingle(),
+    admin.from("approved_mentees").select("*").eq("email", identity.email).maybeSingle(),
   ]);
 
   const bookings = (bookingsData as Booking[]) ?? [];
 
+  // Os nomes dos mentores e o plano não dependem um do outro: vão juntos.
   const mentorIds = Array.from(new Set(bookings.map((b) => b.mentor_id)));
+  const [{ data: mentors }, { data: planData }] = await Promise.all([
+    mentorIds.length > 0
+      ? admin.from("profiles").select("id, full_name").in("id", mentorIds)
+      : Promise.resolve({ data: null }),
+    approval?.plan_id
+      ? admin.from("plans").select("*").eq("id", approval.plan_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+
   const mentorNames = new Map<string, string>();
-  if (mentorIds.length > 0) {
-    const { data: mentors } = await admin.from("profiles").select("id, full_name").in("id", mentorIds);
-    for (const m of (mentors as Pick<Profile, "id" | "full_name">[]) ?? []) {
-      mentorNames.set(m.id, m.full_name);
-    }
+  for (const m of (mentors as Pick<Profile, "id" | "full_name">[]) ?? []) {
+    mentorNames.set(m.id, m.full_name);
   }
 
-  let plan: Plan | null = null;
-  if (approval?.plan_id) {
-    const { data } = await admin.from("plans").select("*").eq("id", approval.plan_id).maybeSingle();
-    plan = data;
-  }
+  const plan: Plan | null = planData;
 
   const effectiveDurationDays = approval?.duration_days_override ?? plan?.duration_days ?? null;
   const effectiveTotalCalls = approval?.total_calls_override ?? plan?.total_calls ?? null;
@@ -75,14 +111,7 @@ export default async function MenteeHistoricoPage() {
   const completedCount = bookings.filter((b) => b.status === "concluida" || b.status === "no_show").length;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6">
-      <div>
-        <h1 className="font-heading text-3xl font-semibold tracking-tight">Histórico</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Suas mentorias realizadas e o status do seu acesso.
-        </p>
-      </div>
-
+    <>
       <div className="rounded-2xl border border-border bg-card p-5">
         <div className="flex items-center gap-2 text-sm font-medium">
           <CalendarClock className="size-4 text-primary" />
@@ -135,6 +164,6 @@ export default async function MenteeHistoricoPage() {
           </div>
         )}
       </div>
-    </div>
+    </>
   );
 }

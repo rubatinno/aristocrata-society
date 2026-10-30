@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { getMenteeSession } from "@/app/agendar/mentee-actions";
+import { getMenteeSession } from "@/lib/mentee-session";
 import { computeUnlockDate } from "@/lib/drip";
 import type { CourseLesson, CourseLessonMaterial, CourseModule, MenteeLessonProgress } from "@/lib/types";
 

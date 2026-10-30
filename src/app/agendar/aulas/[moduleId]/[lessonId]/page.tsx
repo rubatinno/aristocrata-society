@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { getMenteeSession } from "@/app/agendar/mentee-actions";
+import { getMenteeSession } from "@/lib/mentee-session";
 import { getAulasLock, listCourseContent } from "@/app/agendar/aulas/actions";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { SupabaseSetupNotice } from "@/components/setup-notice";
@@ -21,7 +21,8 @@ export default async function MenteeLessonPage({
     redirect("/login?next=/agendar/aulas");
   }
 
-  const lock = await getAulasLock();
+  const [lock, modules] = await Promise.all([getAulasLock(), listCourseContent()]);
+
   if (lock.locked) {
     return (
       <div className="px-4 py-6 sm:px-6">
@@ -31,7 +32,6 @@ export default async function MenteeLessonPage({
   }
 
   const { moduleId, lessonId } = await params;
-  const modules = await listCourseContent();
   const courseModule = modules.find((m) => m.id === moduleId);
   const lesson = courseModule?.lessons.find((l) => l.id === lessonId);
 

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getMenteeSession } from "@/app/agendar/mentee-actions";
+import { getMenteeSession } from "@/lib/mentee-session";
 import { getAulasLock, listCourseContent } from "@/app/agendar/aulas/actions";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { SupabaseSetupNotice } from "@/components/setup-notice";
@@ -16,7 +16,12 @@ export default async function MenteeAulasPage() {
     redirect("/login?next=/agendar/aulas");
   }
 
-  const lock = await getAulasLock();
+  // A trava é um ajuste global da aplicação, não uma permissão por pessoa —
+  // o que o mentorado pode ver já é decidido pelo RLS. Então as duas consultas
+  // vão juntas: esperar a trava pra só então buscar os módulos custava uma ida
+  // inteira ao Supabase em toda visita, e o caminho comum é destravado.
+  const [lock, modules] = await Promise.all([getAulasLock(), listCourseContent()]);
+
   if (lock.locked) {
     return (
       <div className="px-4 py-6 sm:px-6">
@@ -24,8 +29,6 @@ export default async function MenteeAulasPage() {
       </div>
     );
   }
-
-  const modules = await listCourseContent();
 
   return (
     <div className="px-4 py-6 sm:px-6">

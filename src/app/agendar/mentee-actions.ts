@@ -3,12 +3,14 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { detectRoleMismatch } from "@/lib/role-guard";
-import { getTrustedUser } from "@/lib/auth-header";
-import { isMenteeProfileComplete, type MenteeProfile } from "@/lib/types";
+import {
+  VIEW_AS_COOKIE,
+  getMenteeSession as readMenteeSession,
+  type MenteeSession,
+} from "@/lib/mentee-session";
 
-const VIEW_AS_COOKIE = "view_as_mentee_id";
+export type { MenteeSession } from "@/lib/mentee-session";
 
 export interface MenteeAuthState {
   status: "idle" | "success" | "error" | "check-email";
@@ -86,72 +88,16 @@ export async function registerMenteeInline(
   };
 }
 
-export interface MenteeSession {
-  userId: string;
-  email: string;
-  profile: MenteeProfile | null;
-  isComplete: boolean;
-  /** true quando quem está vendo é na verdade um admin em "modo visualização". */
-  impersonating?: boolean;
-}
-
+/**
+ * Mesma sessão de `@/lib/mentee-session`, exposta como Server Action porque o
+ * diálogo de agendamento (componente de cliente) precisa pedi-la do navegador.
+ * Em Server Component, prefira importar de `@/lib/mentee-session` direto: lá a
+ * resposta é memorizada por requisição.
+ */
 export async function getMenteeSession(): Promise<MenteeSession | null> {
-  const supabase = await createClient();
-  const user = await getTrustedUser(supabase);
-
-  if (!user) return null;
-
-  // Modo visualização: um admin pode "entrar" no painel de um mentorado
-  // pra ver exatamente o que ele vê (cookie setado por startViewAsMentee).
-  // Só vale se o usuário real logado for de fato admin — nunca confia só
-  // no cookie.
-  const cookieStore = await cookies();
-  const viewAsId = cookieStore.get(VIEW_AS_COOKIE)?.value;
-
-  if (viewAsId) {
-    const { data: viewerProfile } = await supabase
-      .from("profiles")
-      .select("is_admin")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if (viewerProfile?.is_admin) {
-      const admin = createAdminClient();
-      const { data: targetProfile } = await admin
-        .from("mentee_profiles")
-        .select("*")
-        .eq("id", viewAsId)
-        .maybeSingle();
-
-      if (targetProfile) {
-        return {
-          userId: targetProfile.id,
-          email: targetProfile.email,
-          profile: targetProfile,
-          isComplete: isMenteeProfileComplete(targetProfile),
-          impersonating: true,
-        };
-      }
-    }
-  }
-
-  const { data: profile } = await supabase
-    .from("mentee_profiles")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  return {
-    userId: user.id,
-    email: user.email,
-    profile: profile ?? null,
-    isComplete: profile ? isMenteeProfileComplete(profile) : false,
-  };
+  return readMenteeSession();
 }
 
-/** Admin entra no painel de um mentorado pra ver o que ele vê — sem senha,
- * sem trocar de sessão de verdade (só um cookie que faz getMenteeSession
- * "olhar" pros dados desse mentorado enquanto durar). */
 export async function startViewAsMentee(menteeUserId: string, redirectTo = "/agendar") {
   const supabase = await createClient();
 
