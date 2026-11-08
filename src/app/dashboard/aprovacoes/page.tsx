@@ -34,7 +34,8 @@ export default async function AprovacoesPage() {
         <h1 className="font-heading text-3xl font-semibold tracking-tight">Aprovações</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Toda pessoa que se cadastra (querendo agendar ou querendo ser mentora) cai pendente
-          aqui. Aprove escolhendo o papel — Mentorado, Mentor ou Admin — ou recuse.
+          aqui. Aprove escolhendo o papel — Mentorado, Mentor ou Admin — ou recuse. Depois de
+          aprovado, dá pra trocar o cargo de qualquer pessoa no seletor ao lado dela.
         </p>
       </div>
 

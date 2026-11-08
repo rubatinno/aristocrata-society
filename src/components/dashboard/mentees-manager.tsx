@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import {
   approveAs,
+  changeMemberRole,
   inviteAs,
   rejectMentee,
   removeMentee,
@@ -110,7 +111,28 @@ function MenteeRow({ mentee, plans }: { mentee: ApprovedMentee & { plan: Plan | 
   const [isRejecting, startRejecting] = useTransition();
   const [isRemoving, startRemoving] = useTransition();
   const [isUpdating, startUpdating] = useTransition();
-  const busy = isApproving || isRejecting || isRemoving;
+  const [isChangingRole, startChangingRole] = useTransition();
+  const busy = isApproving || isRejecting || isRemoving || isChangingRole;
+
+  function handleRoleChange(value: string | null) {
+    const role = value as MemberRole | null;
+    if (!role || role === mentee.role) return;
+    const who = mentee.full_name || mentee.email;
+    const message =
+      role === "admin"
+        ? `Tornar ${who} administrador? Ele(a) vai ter acesso total ao painel: aprovações, equipe, financeiro.`
+        : `Mudar o cargo de ${who} para ${ROLE_LABELS[role]}?`;
+    if (!window.confirm(message)) return;
+
+    startChangingRole(async () => {
+      try {
+        await changeMemberRole(mentee.id, role);
+        toast.success(`Cargo alterado para ${ROLE_LABELS[role]}.`);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Não foi possível mudar o cargo.");
+      }
+    });
+  }
 
   function handleApprove(role: MemberRole) {
     setApprovingRole(role);
@@ -228,8 +250,25 @@ function MenteeRow({ mentee, plans }: { mentee: ApprovedMentee & { plan: Plan | 
         </Select>
       )}
 
-      {mentee.status === "approved" && mentee.role !== "mentee" && (
-        <Badge variant="outline">{ROLE_LABELS[mentee.role ?? "mentor"]}</Badge>
+      {mentee.status === "approved" && (
+        <Select
+          items={ROLE_LABELS}
+          value={mentee.role ?? "mentee"}
+          onValueChange={handleRoleChange}
+          disabled={busy}
+        >
+          <SelectTrigger className="w-36" aria-label="Cargo">
+            {isChangingRole && <Loader2 className="size-3.5 animate-spin" />}
+            <SelectValue placeholder="Cargo" />
+          </SelectTrigger>
+          <SelectContent>
+            {(["mentee", "mentor", "admin"] as MemberRole[]).map((role) => (
+              <SelectItem key={role} value={role}>
+                {ROLE_LABELS[role]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       )}
 
       {mentee.status === "rejected" && <Badge variant="outline">Recusado</Badge>}

@@ -40,13 +40,18 @@ function todayKey() {
 /** Rótulo "Quarta-feira, 21 de out." a partir de um dateKey, sem depender do
  * fuso local do navegador (âncora em meio-dia UTC). */
 function formatDateLabel(dateKey: string): string {
+  // O campo de data fica vazio enquanto o mentor apaga ou digita a data pelo
+  // teclado — sem essa checagem o format() lança "Invalid time value" e
+  // derruba a página inteira.
   const anchor = new Date(`${dateKey}T12:00:00Z`);
+  if (!dateKey || Number.isNaN(anchor.getTime())) return "Escolha uma data";
   const label = format(anchor, "EEEE, d 'de' MMM", { locale: ptBR });
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
 /** Horário de término sugerido: 1h depois do início, sem passar de 23:59. */
 function addOneHour(time: string): string {
+  if (!/^\d{2}:\d{2}/.test(time)) return time;
   const [hours, minutes] = time.split(":").map(Number);
   const total = Math.min(hours * 60 + minutes + 60, 23 * 60 + 59);
   const endHours = Math.floor(total / 60);
@@ -155,6 +160,19 @@ export function DateOverridesEditor({ initialDates }: { initialDates: Availabili
         required_call_number: block.requiredCallNumber,
       })),
     );
+
+    // Antes, uma data ou horário em branco era descartado em silêncio no
+    // servidor — o mentor achava que salvou e o horário sumia.
+    if (overrides.some((o) => !o.date)) {
+      toast.error("Tem uma data em branco. Escolha a data ou remova antes de salvar.");
+      return;
+    }
+    const badTime = overrides.find((o) => !o.start_time || !o.end_time || o.start_time >= o.end_time);
+    if (badTime) {
+      const [y, m, d] = badTime.date.split("-");
+      toast.error(`No dia ${d}/${m}/${y}, o horário de término precisa ser depois do início.`);
+      return;
+    }
 
     startTransition(async () => {
       try {

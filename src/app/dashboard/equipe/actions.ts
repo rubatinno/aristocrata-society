@@ -21,7 +21,14 @@ export async function setMentorAdmin(mentorId: string, isAdmin: boolean) {
   const { error } = await supabase.from("profiles").update({ is_admin: isAdmin }).eq("id", mentorId);
   if (error) throw new Error("Não foi possível atualizar.");
 
+  // Mantém o cargo mostrado em Aprovações igual ao daqui.
+  await supabase
+    .from("approved_mentees")
+    .update({ role: isAdmin ? "admin" : "mentor" })
+    .eq("user_id", mentorId);
+
   revalidatePath("/dashboard/equipe");
+  revalidatePath("/dashboard/aprovacoes");
 }
 
 export async function removeMentor(mentorId: string) {

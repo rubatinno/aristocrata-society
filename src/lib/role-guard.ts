@@ -24,6 +24,9 @@ export async function detectRoleMismatch(
   if (profile?.is_admin) return null;
 
   if (expected === "mentor") {
+    // Mentorado promovido a mentor pelo admin mantém o mentee_profiles antigo
+    // (histórico), mas já tem profiles — então pode entrar como mentor.
+    if (profile) return null;
     const { data: mentee } = await supabase
       .from("mentee_profiles")
       .select("id")

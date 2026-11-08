@@ -157,3 +157,96 @@ export async function inviteAs(
     message: "Convite criado — a pessoa ganha o acesso automaticamente ao entrar pelo login.",
   };
 }
+
+/**
+ * Troca o cargo de qualquer pessoa já aprovada (Mentorado / Mentor / Admin).
+ *
+ * O cargo vive em dois lugares: approved_mentees.role (fonte da verdade, usada
+ * também no cadastro de quem ainda não criou conta) e as tabelas de perfil —
+ * profiles pra mentor/admin, mentee_profiles pra mentorado. Por isso:
+ * - virar mentor/admin cria (ou atualiza) o profiles; o mentee_profiles antigo
+ *   fica guardado, pra não perder anotações/metas se a pessoa voltar a ser
+ *   mentorada;
+ * - virar mentorado apaga o profiles, o que levaria junto (cascade) o
+ *   histórico de calls como mentor — então só deixa quando não há nenhuma
+ *   call nesse histórico.
+ */
+export async function changeMemberRole(id: string, role: MemberRole) {
+  const supabase = await requireAdmin();
+  const admin = createAdminClient();
+
+  if (!["mentee", "mentor", "admin"].includes(role)) throw new Error("Cargo inválido.");
+
+  const { data: row } = await supabase
+    .from("approved_mentees")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!row) throw new Error("Pessoa não encontrada.");
+  if (row.status !== "approved") throw new Error("Aprove a pessoa antes de mudar o cargo.");
+  if (row.role === role) return;
+
+  const userId = row.user_id;
+  const { data: currentProfile } = userId
+    ? await admin.from("profiles").select("id, is_admin").eq("id", userId).maybeSingle()
+    : { data: null };
+
+  // Nunca deixar o sistema sem nenhum admin.
+  if (currentProfile?.is_admin && role !== "admin") {
+    const { count } = await admin
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("is_admin", true);
+    if ((count ?? 0) <= 1) throw new Error("Precisa haver pelo menos um admin.");
+  }
+
+  if (userId && (role === "mentor" || role === "admin")) {
+    if (currentProfile) {
+      const { error } = await admin
+        .from("profiles")
+        .update({ is_admin: role === "admin" })
+        .eq("id", userId);
+      if (error) throw new Error("Não foi possível atualizar o cargo.");
+    } else {
+      const { error } = await admin.from("profiles").insert({
+        id: userId,
+        full_name: row.full_name ?? "",
+        slug: `mentor-${userId.slice(0, 8)}`,
+        is_admin: role === "admin",
+      });
+      if (error) throw new Error("Não foi possível dar acesso ao painel.");
+    }
+  }
+
+  if (userId && role === "mentee" && currentProfile) {
+    const { count: calls } = await admin
+      .from("bookings")
+      .select("id", { count: "exact", head: true })
+      .eq("mentor_id", userId);
+    if ((calls ?? 0) > 0) {
+      throw new Error(
+        "Essa pessoa tem calls no histórico como mentor. Mudar para mentorado apagaria esse histórico, então não dá pra fazer por aqui.",
+      );
+    }
+
+    const { error: menteeError } = await admin
+      .from("mentee_profiles")
+      .upsert(
+        { id: userId, email: row.email, full_name: row.full_name, phone: row.phone },
+        { onConflict: "id", ignoreDuplicates: true },
+      );
+    if (menteeError) throw new Error("Não foi possível criar o perfil de mentorado.");
+
+    const { error } = await admin.from("profiles").delete().eq("id", userId);
+    if (error) throw new Error("Não foi possível tirar o acesso ao painel.");
+  }
+
+  const { error } = await admin.from("approved_mentees").update({ role }).eq("id", id);
+  if (error) throw new Error("Não foi possível atualizar o cargo.");
+
+  revalidatePath("/dashboard/aprovacoes");
+  revalidatePath("/dashboard/mentorados");
+  revalidatePath("/dashboard/equipe");
+  revalidatePath("/agendar");
+}
