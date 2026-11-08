@@ -6,13 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   approveAs,
   changeMemberRole,
@@ -25,6 +19,7 @@ import {
 import type { ApprovedMentee, MemberRole, Plan } from "@/lib/types";
 import { Check, Eye, Loader2, Trash2, UserPlus, X } from "lucide-react";
 import { startViewAs } from "@/app/dashboard/view-as-actions";
+import { isOwner } from "@/lib/owner";
 
 const NO_PLAN = "none";
 const STATUS_ORDER = { pending: 0, approved: 1, rejected: 2 } as const;
@@ -56,13 +51,7 @@ export function MenteesManager({
           <Label htmlFor="invite_email" className="text-xs">
             Convidar por e-mail
           </Label>
-          <Input
-            id="invite_email"
-            name="email"
-            type="email"
-            placeholder="pessoa@exemplo.com"
-            required
-          />
+          <Input id="invite_email" name="email" type="email" placeholder="pessoa@exemplo.com" required />
         </div>
         <div className="w-40 space-y-1.5">
           <Label htmlFor="invite_role" className="text-xs">
@@ -107,9 +96,15 @@ export function MenteesManager({
 }
 
 const STATUS_BADGE: Record<ApprovedMentee["status"], { label: string; className: string }> = {
-  pending: { label: "Pendente", className: "border-amber-500/40 text-amber-600 dark:text-amber-400" },
+  pending: {
+    label: "Pendente",
+    className: "border-amber-500/40 text-amber-600 dark:text-amber-400",
+  },
   approved: { label: "Aprovado", className: "border-success/40 text-success" },
-  rejected: { label: "Reprovado", className: "border-destructive/40 text-destructive" },
+  rejected: {
+    label: "Reprovado",
+    className: "border-destructive/40 text-destructive",
+  },
 };
 
 function MenteeRow({ mentee, plans }: { mentee: ApprovedMentee & { plan: Plan | null }; plans: Plan[] }) {
@@ -152,7 +147,10 @@ function MenteeRow({ mentee, plans }: { mentee: ApprovedMentee & { plan: Plan | 
   }
 
   function handleApprove() {
-    if (draftRole === "admin" && !window.confirm(`Aprovar ${who} como administrador? Ele(a) vai ter acesso total ao painel.`)) {
+    if (
+      draftRole === "admin" &&
+      !window.confirm(`Aprovar ${who} como administrador? Ele(a) vai ter acesso total ao painel.`)
+    ) {
       return;
     }
     startApproving(async () => {
@@ -190,13 +188,14 @@ function MenteeRow({ mentee, plans }: { mentee: ApprovedMentee & { plan: Plan | 
   }
 
   function handleRemove() {
-    if (!window.confirm(`Remover ${who} da lista? Se for mentorado, a conta de login também é apagada.`)) return;
+    if (!window.confirm(`Remover ${who} da lista? Se for mentorado, a conta de login também é apagada.`))
+      return;
     startRemoving(async () => {
       try {
         await removeMentee(mentee.id);
         toast.success("Removido.");
-      } catch {
-        toast.error("Não foi possível remover.");
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Não foi possível remover.");
       }
     });
   }
@@ -213,6 +212,7 @@ function MenteeRow({ mentee, plans }: { mentee: ApprovedMentee & { plan: Plan | 
   }
 
   const badge = STATUS_BADGE[mentee.status];
+  const owner = isOwner(mentee);
 
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-4">
@@ -222,19 +222,29 @@ function MenteeRow({ mentee, plans }: { mentee: ApprovedMentee & { plan: Plan | 
           <Badge variant="outline" className={badge.className}>
             {badge.label}
           </Badge>
+          {owner && (
+            <Badge variant="outline" className="border-primary/40 text-primary">
+              Criador
+            </Badge>
+          )}
         </div>
         {(mentee.full_name || mentee.phone) && (
           <p className="truncate text-xs text-muted-foreground">
             {[mentee.full_name, mentee.phone].filter(Boolean).join(" · ")}
           </p>
         )}
-        {!mentee.user_id && isApproved && (
+        {!mentee.user_id && isApproved && !owner && (
           <p className="text-xs text-muted-foreground">Convidado — ainda não se cadastrou</p>
         )}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Select items={ROLE_LABELS} value={shownRole} onValueChange={handleRoleChange} disabled={busy}>
+        <Select
+          items={ROLE_LABELS}
+          value={owner ? "admin" : shownRole}
+          onValueChange={handleRoleChange}
+          disabled={busy || owner}
+        >
           <SelectTrigger className="w-36" aria-label="Cargo">
             {isChangingRole && <Loader2 className="size-3.5 animate-spin" />}
             <SelectValue placeholder="Cargo" />
@@ -273,13 +283,19 @@ function MenteeRow({ mentee, plans }: { mentee: ApprovedMentee & { plan: Plan | 
         )}
 
         {!isApproved && (
-          <Button size="sm" variant="outline" onClick={handleApprove} disabled={busy} className="gap-1.5 text-success">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleApprove}
+            disabled={busy}
+            className="gap-1.5 text-success"
+          >
             {isApproving ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
             Aprovar
           </Button>
         )}
 
-        {mentee.status !== "rejected" && (
+        {mentee.status !== "rejected" && !owner && (
           <Button
             size="sm"
             variant="outline"
@@ -292,24 +308,26 @@ function MenteeRow({ mentee, plans }: { mentee: ApprovedMentee & { plan: Plan | 
           </Button>
         )}
 
-        {isApproved && mentee.user_id && (
+        {isApproved && mentee.user_id && !owner && (
           <Button size="sm" variant="outline" onClick={handleViewAs} disabled={busy} className="gap-1.5">
             {isOpeningView ? <Loader2 className="size-3.5 animate-spin" /> : <Eye className="size-3.5" />}
             Ver como
           </Button>
         )}
 
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={handleRemove}
-          disabled={busy}
-          aria-label="Remover"
-          title="Remover"
-          className="text-muted-foreground hover:text-destructive"
-        >
-          {isRemoving ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-        </Button>
+        {!owner && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={handleRemove}
+            disabled={busy}
+            aria-label="Remover"
+            title="Remover"
+            className="text-muted-foreground hover:text-destructive"
+          >
+            {isRemoving ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+          </Button>
+        )}
       </div>
     </div>
   );

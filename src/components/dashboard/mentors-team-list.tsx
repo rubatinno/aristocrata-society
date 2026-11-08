@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { setMentorAdmin, removeMentor } from "@/app/dashboard/equipe/actions";
 import type { Profile } from "@/lib/types";
+import { isOwner } from "@/lib/owner";
+import { Badge } from "@/components/ui/badge";
 import { Loader2, Trash2 } from "lucide-react";
 
 function initials(name: string) {
@@ -70,14 +72,23 @@ function MentorRow({ mentor, isSelf }: { mentor: Profile; isSelf: boolean }) {
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">
           {mentor.full_name || "Sem nome"} {isSelf && <span className="text-muted-foreground">(você)</span>}
+          {isOwner(mentor) && (
+            <Badge variant="outline" className="ml-2 border-primary/40 text-primary">
+              Criador
+            </Badge>
+          )}
         </p>
         <p className="truncate text-xs text-muted-foreground">/agendar · {mentor.slug}</p>
       </div>
       <div className="flex items-center gap-2">
         <span className="text-xs text-muted-foreground">Admin</span>
-        <Switch checked={mentor.is_admin} onCheckedChange={handleToggle} disabled={isTogglingAdmin || isRemoving} />
+        <Switch
+          checked={mentor.is_admin}
+          onCheckedChange={handleToggle}
+          disabled={isTogglingAdmin || isRemoving || isOwner(mentor)}
+        />
       </div>
-      {!isSelf && (
+      {!isSelf && !isOwner(mentor) && (
         <Button
           type="button"
           variant="ghost"

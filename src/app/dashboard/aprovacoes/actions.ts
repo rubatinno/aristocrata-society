@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { MemberRole } from "@/lib/types";
+import { isOwner, OWNER_PROTECTED_MESSAGE } from "@/lib/owner";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 type AccessTarget = "mentee" | "mentor" | "admin" | "none";
@@ -27,6 +28,8 @@ async function applyAccess(
   row: { user_id: string | null; email: string; full_name: string | null; phone: string | null },
   target: AccessTarget,
 ) {
+  if (isOwner(row) && target !== "admin") throw new Error(OWNER_PROTECTED_MESSAGE);
+
   const userId = row.user_id;
   if (!userId) return; // ainda não criou conta: o cadastro aplica o cargo depois
 
@@ -150,6 +153,7 @@ export async function rejectMentee(id: string) {
 export async function changeMemberRole(id: string, role: MemberRole) {
   assertRole(role);
   const row = await loadRow(id);
+  if (isOwner(row) && role !== "admin") throw new Error(OWNER_PROTECTED_MESSAGE);
   if (row.role === role) return;
   const admin = createAdminClient();
 
@@ -173,9 +177,11 @@ export async function removeMentee(id: string) {
 
   const { data: row } = await supabase
     .from("approved_mentees")
-    .select("user_id, role")
+    .select("user_id, role, email")
     .eq("id", id)
     .maybeSingle();
+
+  if (row && isOwner(row)) throw new Error(OWNER_PROTECTED_MESSAGE);
 
   if (row?.role === "mentee" && row.user_id) {
     const admin = createAdminClient();

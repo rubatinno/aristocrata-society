@@ -3,9 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin";
 import { getTrustedUser } from "@/lib/auth-header";
+import { isOwner, OWNER_PROTECTED_MESSAGE } from "@/lib/owner";
 
 export async function setMentorAdmin(mentorId: string, isAdmin: boolean) {
   const supabase = await requireAdmin();
+
+  if (!isAdmin && isOwner({ id: mentorId })) throw new Error(OWNER_PROTECTED_MESSAGE);
 
   if (!isAdmin) {
     const { count } = await supabase
@@ -34,6 +37,8 @@ export async function setMentorAdmin(mentorId: string, isAdmin: boolean) {
 export async function removeMentor(mentorId: string) {
   const supabase = await requireAdmin();
   const user = await getTrustedUser(supabase);
+
+  if (isOwner({ id: mentorId })) throw new Error(OWNER_PROTECTED_MESSAGE);
 
   if (user?.id === mentorId) {
     throw new Error("Você não pode remover a si mesmo. Peça para outro admin fazer isso.");
