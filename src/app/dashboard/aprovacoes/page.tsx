@@ -33,9 +33,9 @@ export default async function AprovacoesPage() {
       <div>
         <h1 className="font-heading text-3xl font-semibold tracking-tight">Aprovações</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Toda pessoa que se cadastra (querendo agendar ou querendo ser mentora) cai pendente
-          aqui. Aprove escolhendo o papel — Mentorado, Mentor ou Admin — ou recuse. Depois de
-          aprovado, dá pra trocar o cargo de qualquer pessoa no seletor ao lado dela.
+          Toda pessoa que se cadastra cai aqui como pendente. Escolha o cargo (Mentorado, Mentor
+          ou Admin) e aprove ou reprove — dá pra mudar o cargo e a situação de qualquer pessoa
+          depois. Em &quot;Ver como&quot; você abre o painel dela exatamente como ela vê.
         </p>
       </div>
 

@@ -46,6 +46,20 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
+  // "Ver como" de mentor é só leitura: recusa qualquer Server Action no
+  // painel enquanto o cookie existir (as actions gravariam com a conta do
+  // próprio admin, misturando os dados). O nome do cookie está repetido aqui
+  // porque o proxy não importa "server-only" (VIEW_AS_MENTOR_COOKIE em
+  // src/lib/session.ts).
+  if (
+    request.method === "POST" &&
+    request.headers.has("next-action") &&
+    request.nextUrl.pathname.startsWith("/dashboard") &&
+    request.cookies.get("view_as_mentor_id")?.value
+  ) {
+    return new NextResponse("Modo visualização: nada pode ser alterado.", { status: 403 });
+  }
+
   // Repassa o id do usuário já validado via header — evita que cada página
   // precise chamar auth.getUser() de novo (um round-trip a mais pro servidor
   // de autenticação do Supabase a cada navegação). Sempre remove primeiro

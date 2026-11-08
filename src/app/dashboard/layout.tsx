@@ -12,9 +12,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
     return <SupabaseSetupNotice />;
   }
 
-  const { user, profile, mentorModeActive } = await requireMentor();
+  const { user, profile, mentorModeActive, viewingAs } = await requireMentor();
 
-  if (needsOnboarding(profile)) {
+  if (!viewingAs && needsOnboarding(profile)) {
     redirect("/onboarding");
   }
 
@@ -25,6 +25,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <div className="flex min-h-screen bg-muted/20">
       <DashboardSidebar isAdmin={profile.is_admin} mentorModeActive={mentorModeActive} />
       <div className="flex min-w-0 flex-1 flex-col">
+        {viewingAs && (
+          <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 bg-primary px-4 py-2 text-center text-xs font-medium text-primary-foreground sm:text-sm">
+            Vendo como {viewingAs.name} — só visualização, nada pode ser alterado
+            {/* <a> e não <Link>: sair é um GET simples, sem prefetch. */}
+            <a href="/ver-como/sair" className="underline underline-offset-2 hover:no-underline">
+              Voltar ao meu painel
+            </a>
+          </div>
+        )}
         {mentorModeActive && (
           <div className="flex items-center justify-center gap-2 bg-primary px-4 py-2 text-center text-xs font-medium text-primary-foreground sm:text-sm">
             Modo Mentor — só o seu painel de mentor, sem as ferramentas de admin

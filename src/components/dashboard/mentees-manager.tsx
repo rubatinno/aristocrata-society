@@ -23,7 +23,8 @@ import {
   type InviteFormState,
 } from "@/app/dashboard/aprovacoes/actions";
 import type { ApprovedMentee, MemberRole, Plan } from "@/lib/types";
-import { Check, Loader2, Trash2, UserPlus, X } from "lucide-react";
+import { Check, Eye, Loader2, Trash2, UserPlus, X } from "lucide-react";
+import { startViewAs } from "@/app/dashboard/view-as-actions";
 
 const NO_PLAN = "none";
 const STATUS_ORDER = { pending: 0, approved: 1, rejected: 2 } as const;
@@ -105,19 +106,35 @@ export function MenteesManager({
   );
 }
 
+const STATUS_BADGE: Record<ApprovedMentee["status"], { label: string; className: string }> = {
+  pending: { label: "Pendente", className: "border-amber-500/40 text-amber-600 dark:text-amber-400" },
+  approved: { label: "Aprovado", className: "border-success/40 text-success" },
+  rejected: { label: "Reprovado", className: "border-destructive/40 text-destructive" },
+};
+
 function MenteeRow({ mentee, plans }: { mentee: ApprovedMentee & { plan: Plan | null }; plans: Plan[] }) {
-  const [approvingRole, setApprovingRole] = useState<MemberRole | null>(null);
+  // Pendente/reprovado: o cargo escolhido aqui só vale quando clicar em
+  // Aprovar. Aprovado: trocar o cargo aplica na hora (com confirmação).
+  const [draftRole, setDraftRole] = useState<MemberRole>(mentee.role ?? "mentee");
   const [isApproving, startApproving] = useTransition();
   const [isRejecting, startRejecting] = useTransition();
   const [isRemoving, startRemoving] = useTransition();
   const [isUpdating, startUpdating] = useTransition();
   const [isChangingRole, startChangingRole] = useTransition();
-  const busy = isApproving || isRejecting || isRemoving || isChangingRole;
+  const [isOpeningView, startOpeningView] = useTransition();
+  const busy = isApproving || isRejecting || isRemoving || isChangingRole || isOpeningView;
+  const isApproved = mentee.status === "approved";
+  const who = mentee.full_name || mentee.email;
+  const shownRole = isApproved ? (mentee.role ?? "mentee") : draftRole;
 
   function handleRoleChange(value: string | null) {
     const role = value as MemberRole | null;
-    if (!role || role === mentee.role) return;
-    const who = mentee.full_name || mentee.email;
+    if (!role) return;
+    if (!isApproved) {
+      setDraftRole(role);
+      return;
+    }
+    if (role === mentee.role) return;
     const message =
       role === "admin"
         ? `Tornar ${who} administrador? Ele(a) vai ter acesso total ao painel: aprovações, equipe, financeiro.`
@@ -134,30 +151,46 @@ function MenteeRow({ mentee, plans }: { mentee: ApprovedMentee & { plan: Plan | 
     });
   }
 
-  function handleApprove(role: MemberRole) {
-    setApprovingRole(role);
+  function handleApprove() {
+    if (draftRole === "admin" && !window.confirm(`Aprovar ${who} como administrador? Ele(a) vai ter acesso total ao painel.`)) {
+      return;
+    }
     startApproving(async () => {
       try {
-        await approveAs(mentee.id, role);
-        toast.success(`Aprovado como ${ROLE_LABELS[role].toLowerCase()}.`);
-      } catch {
-        toast.error("Não foi possível aprovar.");
+        await approveAs(mentee.id, draftRole);
+        toast.success(`Aprovado como ${ROLE_LABELS[draftRole].toLowerCase()}.`);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Não foi possível aprovar.");
       }
     });
   }
 
   function handleReject() {
+    if (isApproved && !window.confirm(`Reprovar ${who}? A pessoa perde o acesso agora.`)) return;
     startRejecting(async () => {
       try {
         await rejectMentee(mentee.id);
-        toast.success("Pedido recusado.");
-      } catch {
-        toast.error("Não foi possível recusar.");
+        toast.success("Reprovado.");
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Não foi possível reprovar.");
+      }
+    });
+  }
+
+  function handleViewAs() {
+    startOpeningView(async () => {
+      try {
+        // Redireciona por dentro (throw interno do Next) quando dá certo.
+        await startViewAs(mentee.id);
+      } catch (e) {
+        if (e instanceof Error && e.message.includes("NEXT_REDIRECT")) throw e;
+        toast.error(e instanceof Error ? e.message : "Não foi possível abrir a visualização.");
       }
     });
   }
 
   function handleRemove() {
+    if (!window.confirm(`Remover ${who} da lista? Se for mentorado, a conta de login também é apagada.`)) return;
     startRemoving(async () => {
       try {
         await removeMentee(mentee.id);
@@ -179,84 +212,29 @@ function MenteeRow({ mentee, plans }: { mentee: ApprovedMentee & { plan: Plan | 
     });
   }
 
+  const badge = STATUS_BADGE[mentee.status];
+
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-4">
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{mentee.email}</p>
+      <div className="min-w-0 flex-1 basis-56">
+        <div className="flex items-center gap-2">
+          <p className="truncate text-sm font-medium">{mentee.email}</p>
+          <Badge variant="outline" className={badge.className}>
+            {badge.label}
+          </Badge>
+        </div>
         {(mentee.full_name || mentee.phone) && (
           <p className="truncate text-xs text-muted-foreground">
             {[mentee.full_name, mentee.phone].filter(Boolean).join(" · ")}
           </p>
         )}
-        {!mentee.user_id && mentee.status === "approved" && (
+        {!mentee.user_id && isApproved && (
           <p className="text-xs text-muted-foreground">Convidado — ainda não se cadastrou</p>
         )}
       </div>
 
-      {mentee.status === "pending" && (
-        <>
-          <Badge variant="outline">Pendente</Badge>
-          {(["mentee", "mentor", "admin"] as MemberRole[]).map((role) => (
-            <Button
-              key={role}
-              size="sm"
-              variant="outline"
-              onClick={() => handleApprove(role)}
-              disabled={busy}
-              className="gap-1.5"
-            >
-              {isApproving && approvingRole === role ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : (
-                <Check className="size-3.5" />
-              )}
-              {ROLE_LABELS[role]}
-            </Button>
-          ))}
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={handleReject}
-            disabled={busy}
-            aria-label="Recusar"
-            className="text-muted-foreground hover:text-destructive"
-          >
-            {isRejecting ? <Loader2 className="size-4 animate-spin" /> : <X className="size-4" />}
-          </Button>
-        </>
-      )}
-
-      {mentee.status === "approved" && mentee.role === "mentee" && (
-        <Select
-          items={{
-            [NO_PLAN]: "Sem plano (1/semana)",
-            ...Object.fromEntries(plans.map((plan) => [plan.id, plan.name])),
-          }}
-          value={mentee.plan_id ?? NO_PLAN}
-          onValueChange={handlePlanChange}
-          disabled={isUpdating}
-        >
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="Sem plano" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={NO_PLAN}>Sem plano (1/semana)</SelectItem>
-            {plans.map((plan) => (
-              <SelectItem key={plan.id} value={plan.id}>
-                {plan.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      )}
-
-      {mentee.status === "approved" && (
-        <Select
-          items={ROLE_LABELS}
-          value={mentee.role ?? "mentee"}
-          onValueChange={handleRoleChange}
-          disabled={busy}
-        >
+      <div className="flex flex-wrap items-center gap-2">
+        <Select items={ROLE_LABELS} value={shownRole} onValueChange={handleRoleChange} disabled={busy}>
           <SelectTrigger className="w-36" aria-label="Cargo">
             {isChangingRole && <Loader2 className="size-3.5 animate-spin" />}
             <SelectValue placeholder="Cargo" />
@@ -269,20 +247,70 @@ function MenteeRow({ mentee, plans }: { mentee: ApprovedMentee & { plan: Plan | 
             ))}
           </SelectContent>
         </Select>
-      )}
 
-      {mentee.status === "rejected" && <Badge variant="outline">Recusado</Badge>}
+        {isApproved && mentee.role === "mentee" && (
+          <Select
+            items={{
+              [NO_PLAN]: "Sem plano (1/semana)",
+              ...Object.fromEntries(plans.map((plan) => [plan.id, plan.name])),
+            }}
+            value={mentee.plan_id ?? NO_PLAN}
+            onValueChange={handlePlanChange}
+            disabled={isUpdating}
+          >
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="Sem plano" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_PLAN}>Sem plano (1/semana)</SelectItem>
+              {plans.map((plan) => (
+                <SelectItem key={plan.id} value={plan.id}>
+                  {plan.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
 
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        onClick={handleRemove}
-        disabled={busy}
-        aria-label="Remover"
-        className="text-muted-foreground hover:text-destructive"
-      >
-        {isRemoving ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-      </Button>
+        {!isApproved && (
+          <Button size="sm" variant="outline" onClick={handleApprove} disabled={busy} className="gap-1.5 text-success">
+            {isApproving ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
+            Aprovar
+          </Button>
+        )}
+
+        {mentee.status !== "rejected" && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleReject}
+            disabled={busy}
+            className="gap-1.5 text-muted-foreground hover:text-destructive"
+          >
+            {isRejecting ? <Loader2 className="size-3.5 animate-spin" /> : <X className="size-3.5" />}
+            Reprovar
+          </Button>
+        )}
+
+        {isApproved && mentee.user_id && (
+          <Button size="sm" variant="outline" onClick={handleViewAs} disabled={busy} className="gap-1.5">
+            {isOpeningView ? <Loader2 className="size-3.5 animate-spin" /> : <Eye className="size-3.5" />}
+            Ver como
+          </Button>
+        )}
+
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={handleRemove}
+          disabled={busy}
+          aria-label="Remover"
+          title="Remover"
+          className="text-muted-foreground hover:text-destructive"
+        >
+          {isRemoving ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+        </Button>
+      </div>
     </div>
   );
 }
