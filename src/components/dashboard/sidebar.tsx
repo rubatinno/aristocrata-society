@@ -17,6 +17,7 @@ import {
   UsersRound,
   Wallet,
   Receipt,
+  PhoneCall,
   type LucideIcon,
 } from "lucide-react";
 import { LogoMark } from "@/components/logo";
@@ -37,6 +38,7 @@ const baseLinks: NavLink[] = [
 ];
 
 const adminLinks: NavLink[] = [
+  { href: "/dashboard/chamadas", label: "Chamadas Gerais", icon: PhoneCall },
   { href: "/dashboard/aulas", label: "Aulas", icon: BookOpen },
   { href: "/dashboard/gestao", label: "Gestão", icon: LineChart },
   { href: "/dashboard/aprovacoes", label: "Aprovações", icon: ShieldCheck },
