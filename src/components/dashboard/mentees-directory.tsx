@@ -15,7 +15,9 @@ import {
   updateMenteeOverrides,
   type LinkFormState,
 } from "@/app/dashboard/mentorados/actions";
-import { adminSetMenteePassword, updateMenteePlan } from "@/app/dashboard/aprovacoes/actions";
+import { adminSetMenteePassword, rejectMentee, updateMenteePlan } from "@/app/dashboard/aprovacoes/actions";
+import { startViewAs } from "@/app/dashboard/view-as-actions";
+import { isOwner } from "@/lib/owner";
 import { listMenteeNotes } from "@/app/agendar/anotacoes/actions";
 import { listMenteeGoals } from "@/app/agendar/progresso/actions";
 import { getMenteeSummary } from "@/app/dashboard/mentorados/summary-actions";
@@ -56,6 +58,7 @@ import {
   Search,
   Target,
   Trash2,
+  UserX,
   Users,
   X,
   type LucideIcon,
@@ -92,6 +95,42 @@ function matchesSearch(mentee: MenteeWithDetails, query: string) {
   return haystack.includes(query.toLowerCase());
 }
 
+export type TeamMember = {
+  id: string;
+  user_id: string | null;
+  email: string;
+  phone: string | null;
+  full_name: string | null;
+  role: "mentor" | "admin";
+};
+
+type RoleFilter = "all" | "mentee" | "mentor" | "admin";
+
+function matchesTeamSearch(member: TeamMember, query: string) {
+  if (!query) return true;
+  return `${member.full_name ?? ""} ${member.email}`.toLowerCase().includes(query.toLowerCase());
+}
+
+/** Confirma e tira o acesso (mesma regra do "Reprovar" de Aprovações — dá pra reaprovar lá). */
+function useRevokeAccess(id: string, name: string, extraWarning?: string) {
+  const [isRevoking, startRevoking] = useTransition();
+  function revoke() {
+    const ok = window.confirm(
+      `Tirar o acesso de ${name}?\n\nA pessoa não consegue mais entrar. Dá pra devolver depois em Aprovações (ela aparece como Reprovada).${extraWarning ? `\n\n${extraWarning}` : ""}`,
+    );
+    if (!ok) return;
+    startRevoking(async () => {
+      try {
+        await rejectMentee(id);
+        toast.success(`Acesso de ${name} removido.`);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Não foi possível remover o acesso.");
+      }
+    });
+  }
+  return { revoke, isRevoking };
+}
+
 const STATUS_ITEMS: Record<string, string> = {
   all: "Todos",
   active: "Ativos",
@@ -102,15 +141,20 @@ export function MenteesDirectory({
   mentees,
   plans = [],
   isAdmin = false,
+  team = [],
+  currentUserId,
 }: {
   mentees: MenteeWithDetails[];
   plans?: Plan[];
   isAdmin?: boolean;
+  team?: TeamMember[];
+  currentUserId?: string;
 }) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
 
-  if (mentees.length === 0) {
+  if (mentees.length === 0 && team.length === 0) {
     return (
       <p className="rounded-2xl border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
         Nenhum mentorado aprovado ainda. Peça a um admin para aprovar em Aprovações.
@@ -121,17 +165,59 @@ export function MenteesDirectory({
   const activeCount = mentees.filter((m) => !isMenteeExpired(m)).length;
   const expiredCount = mentees.length - activeCount;
 
+  const showMentees = roleFilter === "all" || roleFilter === "mentee";
+  // "Ativos/Vencidos" só faz sentido pra mentorado — com esse filtro ligado, some a equipe.
+  const filteredTeam =
+    statusFilter !== "all"
+      ? []
+      : team.filter(
+          (member) => (roleFilter === "all" || roleFilter === member.role) && matchesTeamSearch(member, query),
+        );
+  const roleCounts: Record<RoleFilter, number> = {
+    all: mentees.length + team.length,
+    mentee: mentees.length,
+    mentor: team.filter((m) => m.role === "mentor").length,
+    admin: team.filter((m) => m.role === "admin").length,
+  };
+  const ROLE_TABS: { value: RoleFilter; label: string }[] = [
+    { value: "all", label: "Todos" },
+    { value: "mentee", label: "Mentorados" },
+    { value: "mentor", label: "Mentores" },
+    { value: "admin", label: "Admins" },
+  ];
+
   const filtered = mentees.filter((mentee) => {
+    if (!showMentees) return false;
     if (!matchesSearch(mentee, query)) return false;
     if (statusFilter === "active") return !isMenteeExpired(mentee);
     if (statusFilter === "expired") return isMenteeExpired(mentee);
     return true;
   });
 
-  const hasFilters = query !== "" || statusFilter !== "all";
+  const hasFilters = query !== "" || statusFilter !== "all" || roleFilter !== "all";
 
   return (
     <div className="space-y-4">
+      {isAdmin && team.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {ROLE_TABS.map((tab) => (
+            <button
+              key={tab.value}
+              type="button"
+              onClick={() => setRoleFilter(tab.value)}
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                roleFilter === tab.value
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border text-muted-foreground hover:bg-muted",
+              )}
+            >
+              {tab.label} · {roleCounts[tab.value]}
+            </button>
+          ))}
+        </div>
+      )}
+
       {isAdmin && (
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-48 flex-1">
@@ -163,6 +249,7 @@ export function MenteesDirectory({
               onClick={() => {
                 setQuery("");
                 setStatusFilter("all");
+                setRoleFilter("all");
               }}
               className="gap-1.5"
             >
@@ -172,9 +259,17 @@ export function MenteesDirectory({
         </div>
       )}
 
-      {filtered.length === 0 ? (
+      {filteredTeam.length > 0 && (
+        <div className="space-y-3">
+          {filteredTeam.map((member) => (
+            <TeamMemberCard key={member.id} member={member} isMe={member.user_id === currentUserId} />
+          ))}
+        </div>
+      )}
+
+      {filtered.length === 0 && filteredTeam.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
-          Nenhum mentorado encontrado com esses filtros.
+          Ninguém encontrado com esses filtros.
         </p>
       ) : (
         <div className="space-y-3">
@@ -414,6 +509,8 @@ function MenteeCard({
     void startViewAsMentee(mentee.user_id);
   }
 
+  const { revoke, isRevoking } = useRevokeAccess(mentee.id, mentee.full_name || mentee.email);
+
   function handleSetPassword() {
     if (!mentee.user_id) return;
     if (newPassword.length < 6) {
@@ -484,6 +581,16 @@ function MenteeCard({
           onClick={() => setPasswordOpen(true)}
           disabled={!mentee.user_id}
           title={!mentee.user_id ? "Mentorado ainda não criou a conta" : undefined}
+        />
+      )}
+      {isAdmin && (
+        <MenteeActionButton
+          icon={UserX}
+          label="Remover acesso"
+          shortLabel="Tirar acesso"
+          onClick={revoke}
+          disabled={isRevoking}
+          loading={isRevoking}
         />
       )}
     </>
@@ -933,6 +1040,153 @@ function MenteeCard({
           </Button>
         )}
       </div>
+    </div>
+  );
+}
+
+function TeamMemberCard({ member, isMe }: { member: TeamMember; isMe: boolean }) {
+  const name = member.full_name || member.email;
+  const owner = isOwner(member);
+  const { revoke, isRevoking } = useRevokeAccess(
+    member.id,
+    name,
+    "Os horários de disponibilidade dessa pessoa como mentor serão apagados.",
+  );
+  const [isOpeningView, startOpeningView] = useTransition();
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [isSavingPassword, startSavingPassword] = useTransition();
+
+  function handleSetPassword() {
+    if (!member.user_id) return;
+    if (newPassword.length < 6) {
+      toast.error("A senha precisa ter pelo menos 6 caracteres.");
+      return;
+    }
+    startSavingPassword(async () => {
+      try {
+        await adminSetMenteePassword(member.user_id!, newPassword);
+        toast.success(isMe ? "Sua senha foi alterada." : `Senha alterada. Avise ${name} da nova senha.`);
+        setPasswordOpen(false);
+        setNewPassword("");
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Não foi possível alterar a senha.");
+      }
+    });
+  }
+
+  const noAccount = !member.user_id;
+  const noAccountTitle = noAccount ? "Ainda não criou a conta" : undefined;
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <p className="truncate text-base font-semibold">{name}</p>
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            <span className="inline-flex min-w-0 items-center gap-1">
+              <Mail className="size-3 shrink-0" />
+              <span className="truncate">{member.email}</span>
+            </span>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          <Badge variant={member.role === "admin" ? "default" : "secondary"}>
+            {member.role === "admin" ? "Admin" : "Mentor"}
+          </Badge>
+          {owner && <Badge variant="outline">Criador</Badge>}
+          {isMe && !owner && <Badge variant="outline">Você</Badge>}
+        </div>
+      </div>
+
+      <div className="mt-3 grid grid-cols-3 gap-1.5 border-t border-border pt-3 sm:flex sm:flex-wrap sm:items-center sm:gap-2">
+        {!isMe && !owner && (
+          <MenteeActionButton
+            icon={Eye}
+            label="Ver como"
+            onClick={() => startOpeningView(() => startViewAs(member.id))}
+            disabled={noAccount || isOpeningView}
+            title={noAccountTitle}
+            loading={isOpeningView}
+          />
+        )}
+        {(!owner || isMe) && (
+          <MenteeActionButton
+            icon={KeyRound}
+            label="Redefinir senha"
+            shortLabel="Senha"
+            onClick={() => setPasswordOpen(true)}
+            disabled={noAccount}
+            title={noAccountTitle}
+          />
+        )}
+        {!isMe && !owner && (
+          <MenteeActionButton
+            icon={UserX}
+            label="Remover acesso"
+            shortLabel="Tirar acesso"
+            onClick={revoke}
+            disabled={isRevoking}
+            loading={isRevoking}
+          />
+        )}
+        {owner && !isMe && (
+          <p className="col-span-3 text-xs text-muted-foreground">
+            Conta do criador do sistema: não dá pra mexer na senha nem no acesso.
+          </p>
+        )}
+      </div>
+
+      {member.user_id && (
+        <Dialog
+          open={passwordOpen}
+          onOpenChange={(open) => {
+            setPasswordOpen(open);
+            if (!open) setNewPassword("");
+          }}
+        >
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Redefinir senha · {name}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                {isMe
+                  ? "Define uma senha nova pra sua conta."
+                  : "Define uma senha nova pra essa pessoa entrar. Avise por fora (WhatsApp, etc) — isso não envia e-mail."}
+              </p>
+              <Input
+                type="text"
+                autoFocus
+                placeholder="Nova senha (mín. 6 caracteres)"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleSetPassword();
+                  }
+                }}
+              />
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setPasswordOpen(false)}
+                  disabled={isSavingPassword}
+                >
+                  Cancelar
+                </Button>
+                <Button type="button" size="sm" onClick={handleSetPassword} disabled={isSavingPassword} className="gap-1.5">
+                  {isSavingPassword && <Loader2 className="size-3.5 animate-spin" />}
+                  Salvar nova senha
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

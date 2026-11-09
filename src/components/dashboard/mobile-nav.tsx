@@ -13,7 +13,7 @@ const links = [
   { href: "/dashboard/configuracoes", label: "Ajustes", icon: Settings },
 ];
 
-export function DashboardMobileNav() {
+export function DashboardMobileNav({ adminView = false }: { adminView?: boolean }) {
   const pathname = usePathname();
 
   // Sem backdrop-blur de propósito: num elemento fixed presente em toda
@@ -35,7 +35,7 @@ export function DashboardMobileNav() {
             )}
           >
             <link.icon className="size-5" />
-            {link.label}
+            {adminView && link.href === "/dashboard/mentorados" ? "Membros" : link.label}
           </Link>
         );
       })}

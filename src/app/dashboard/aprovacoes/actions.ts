@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { MemberRole } from "@/lib/types";
+import { getTrustedUser } from "@/lib/auth-header";
 import { isOwner, OWNER_PROTECTED_MESSAGE } from "@/lib/owner";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
@@ -124,6 +125,11 @@ export async function approveAs(id: string, role: MemberRole) {
 
   await applyAccess(admin, row, role);
 
+  // Desfaz o bloqueio de login de quem tinha sido reprovado.
+  if (row.user_id) {
+    await admin.auth.admin.updateUserById(row.user_id, { ban_duration: "none" });
+  }
+
   const { error } = await admin
     .from("approved_mentees")
     .update({ status: "approved", role })
@@ -133,12 +139,53 @@ export async function approveAs(id: string, role: MemberRole) {
   revalidateMembers();
 }
 
-/** Reprova — também quem já estava aprovado, tirando o acesso ao painel. */
+/**
+ * Reprova / tira o acesso — também de quem já estava aprovado. Além de
+ * marcar como reprovado, bloqueia o login da conta (ban), então a pessoa
+ * não entra mais por nenhuma aba. Reaprovar desbloqueia.
+ *
+ * Mentor com calls no histórico: o perfil fica (apagar levaria o histórico
+ * junto), mas perde o admin e os horários são desativados, então ninguém
+ * consegue marcar com ele.
+ */
 export async function rejectMentee(id: string) {
   const row = await loadRow(id);
+  if (isOwner(row)) throw new Error(OWNER_PROTECTED_MESSAGE);
+  const me = await getTrustedUser(await requireAdmin());
+  if (row.user_id && me?.id === row.user_id) {
+    throw new Error("Você não pode tirar o seu próprio acesso. Peça para outro admin fazer isso.");
+  }
   const admin = createAdminClient();
 
-  await applyAccess(admin, row, "none");
+  if (row.user_id) {
+    const userId = row.user_id;
+    const [{ data: currentProfile }, { count: calls }] = await Promise.all([
+      admin.from("profiles").select("id, is_admin").eq("id", userId).maybeSingle(),
+      admin.from("bookings").select("id", { count: "exact", head: true }).eq("mentor_id", userId),
+    ]);
+
+    if (currentProfile && (calls ?? 0) > 0) {
+      if (currentProfile.is_admin) {
+        const { count } = await admin
+          .from("profiles")
+          .select("id", { count: "exact", head: true })
+          .eq("is_admin", true);
+        if ((count ?? 0) <= 1) throw new Error("Precisa haver pelo menos um admin.");
+        await admin.from("profiles").update({ is_admin: false }).eq("id", userId);
+      }
+      await Promise.all([
+        admin.from("availability_rules").update({ is_active: false }).eq("mentor_id", userId),
+        admin.from("availability_dates").update({ is_active: false }).eq("mentor_id", userId),
+      ]);
+    } else {
+      await applyAccess(admin, row, "none");
+    }
+
+    const { error: banError } = await admin.auth.admin.updateUserById(userId, { ban_duration: "876000h" });
+    if (banError && banError.code !== "user_not_found") {
+      throw new Error("Não foi possível bloquear o login dessa pessoa.");
+    }
+  }
 
   const { error } = await admin.from("approved_mentees").update({ status: "rejected" }).eq("id", id);
   if (error) throw new Error("Não foi possível reprovar.");
@@ -220,7 +267,13 @@ export async function updateMenteePlan(id: string, planId: string | null) {
  * minha senha" (que dependeria do mentorado ter acesso ao e-mail).
  */
 export async function adminSetMenteePassword(userId: string, newPassword: string) {
-  await requireAdmin();
+  const supabase = await requireAdmin();
+
+  // A senha do criador só ele mesmo troca.
+  if (isOwner({ user_id: userId })) {
+    const me = await getTrustedUser(supabase);
+    if (!isOwner({ user_id: me?.id })) throw new Error("Só o criador do sistema pode trocar a senha dessa conta.");
+  }
 
   if (newPassword.length < 6) {
     throw new Error("A senha precisa ter pelo menos 6 caracteres.");

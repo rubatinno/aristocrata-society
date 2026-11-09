@@ -74,7 +74,12 @@ export function DashboardSidebar({
   mentorModeActive?: boolean;
 }) {
   const pathname = usePathname();
-  const links = isAdmin && !mentorModeActive ? [...baseLinks, ...adminLinks] : baseLinks;
+  const adminView = isAdmin && !mentorModeActive;
+  // Pro admin a aba de mentorados mostra todo mundo (mentores e admins também).
+  const base = adminView
+    ? baseLinks.map((link) => (link.href === "/dashboard/mentorados" ? { ...link, label: "Membros" } : link))
+    : baseLinks;
+  const links = adminView ? [...base, ...adminLinks] : base;
 
   return (
     <aside className="hidden w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground lg:flex">

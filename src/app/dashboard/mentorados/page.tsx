@@ -1,11 +1,16 @@
 import { addDays } from "date-fns";
-import { MenteesDirectory, type MenteeWithDetails } from "@/components/dashboard/mentees-directory";
+import {
+  MenteesDirectory,
+  type MenteeWithDetails,
+  type TeamMember,
+} from "@/components/dashboard/mentees-directory";
 import { requireMentor } from "@/lib/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { ApprovedMentee, Booking, MenteeLink, Plan } from "@/lib/types";
 
 export default async function MentoradosPage() {
   const { supabase, profile, mentorModeActive } = await requireMentor();
+  const isAdmin = profile.is_admin && !mentorModeActive;
 
   const [{ data: mentees }, { data: plans }, { data: links }] = await Promise.all([
     // Só quem foi aprovado como mentorado — mentores/admins também vivem em
@@ -51,6 +56,34 @@ export default async function MentoradosPage() {
     }
   }
 
+  // Admin vê também a equipe (mentores e admins). O cargo vem do perfil
+  // (is_admin), que é o que vale de fato pro acesso.
+  let team: TeamMember[] = [];
+  if (isAdmin) {
+    const admin = createAdminClient();
+    const [{ data: teamRows }, { data: profiles }] = await Promise.all([
+      admin
+        .from("approved_mentees")
+        .select("*")
+        .eq("status", "approved")
+        .in("role", ["mentor", "admin"])
+        .order("created_at", { ascending: true }),
+      admin.from("profiles").select("id, full_name, is_admin"),
+    ]);
+    const profileById = new Map((profiles ?? []).map((p) => [p.id, p]));
+    team = ((teamRows as ApprovedMentee[]) ?? []).map((row) => {
+      const teamProfile = row.user_id ? profileById.get(row.user_id) : undefined;
+      return {
+        id: row.id,
+        user_id: row.user_id,
+        email: row.email,
+        phone: row.phone,
+        full_name: teamProfile?.full_name || row.full_name,
+        role: (teamProfile ? teamProfile.is_admin : row.role === "admin") ? "admin" : "mentor",
+      };
+    });
+  }
+
   const now = new Date();
 
   const menteesWithDetails: MenteeWithDetails[] = menteeList.map((mentee) => {
@@ -78,17 +111,22 @@ export default async function MentoradosPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <h1 className="font-heading text-3xl font-semibold tracking-tight">Mentorados</h1>
+        <h1 className="font-heading text-3xl font-semibold tracking-tight">
+          {isAdmin ? "Membros" : "Mentorados"}
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Todos os mentorados aprovados na Aristocrata Society. Guarde links de documentos e
-          materiais importantes de cada um.
+          {isAdmin
+            ? "Todo mundo com acesso aprovado: mentorados, mentores e admins. Daqui dá pra trocar a senha de qualquer um ou tirar o acesso."
+            : "Todos os mentorados aprovados na Aristocrata Society. Guarde links de documentos e materiais importantes de cada um."}
         </p>
       </div>
 
       <MenteesDirectory
         mentees={menteesWithDetails}
         plans={planList}
-        isAdmin={profile.is_admin && !mentorModeActive}
+        isAdmin={isAdmin}
+        team={team}
+        currentUserId={profile.id}
       />
     </div>
   );

@@ -53,7 +53,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         />
         <main className="flex-1 px-4 pb-20 pt-6 sm:px-6 lg:pb-10">{children}</main>
       </div>
-      <DashboardMobileNav />
+      <DashboardMobileNav adminView={profile.is_admin && !mentorModeActive} />
     </div>
   );
 }
