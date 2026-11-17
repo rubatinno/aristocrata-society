@@ -117,7 +117,7 @@ export default async function MentoradosPage() {
         <p className="mt-1 text-sm text-muted-foreground">
           {isAdmin
             ? "Todo mundo com acesso aprovado: mentorados, mentores e admins. Daqui dá pra trocar a senha de qualquer um ou tirar o acesso."
-            : "Todos os mentorados aprovados na Aristocrata Society. Guarde links de documentos e materiais importantes de cada um."}
+            : "Todos os mentorados aprovados na Aristocrata Society. Guarde o doc da mentoria e os links importantes de cada um."}
         </p>
       </div>
 

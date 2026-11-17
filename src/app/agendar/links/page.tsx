@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { SupabaseSetupNotice } from "@/components/setup-notice";
 import { MenteeLinkRow } from "@/components/mentee-area/mentee-link-row";
+import { googleEmbedUrl } from "@/lib/links";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { MenteeLink } from "@/lib/types";
 
@@ -20,9 +21,9 @@ export default function MenteeLinksPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6">
       <div>
-        <h1 className="font-heading text-3xl font-semibold tracking-tight">Google Docs</h1>
+        <h1 className="font-heading text-3xl font-semibold tracking-tight">Links Importantes</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Documentos e materiais que seu mentor guardou pra você por aqui.
+          O doc da sua mentoria e os links importantes que seu mentor separou pra você.
         </p>
       </div>
 
@@ -70,13 +71,16 @@ async function LinksList() {
     },
   );
 
+  // Docs do Google (com pré-visualização) primeiro, depois os demais links.
+  links.sort((a, b) => Number(!googleEmbedUrl(a.url)) - Number(!googleEmbedUrl(b.url)));
+
   if (links.length === 0) {
     return (
       <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border py-14 text-center">
         <FileText className="size-8 text-muted-foreground" />
-        <p className="text-sm font-medium">Nenhum documento por aqui ainda</p>
+        <p className="text-sm font-medium">Nenhum link por aqui ainda</p>
         <p className="max-w-xs text-sm text-muted-foreground">
-          Quando um mentor adicionar um documento ou link pra você, ele aparece nesta página.
+          Quando seu mentor adicionar o doc da mentoria ou outro link importante, ele aparece aqui.
         </p>
       </div>
     );

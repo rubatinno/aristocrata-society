@@ -12,7 +12,7 @@ type NavLink = { href: string; label: string; icon?: LucideIcon; iconSrc?: strin
 
 const links: NavLink[] = [
   { href: "/agendar", label: "Agendar", icon: CalendarDays },
-  { href: "/agendar/links", label: "Docs", icon: FileText },
+  { href: "/agendar/links", label: "Links", icon: FileText },
   { href: "/agendar/anotacoes", label: "Notas", icon: NotebookPen },
   { href: DISCORD_URL, label: "Discord", iconSrc: "/icons/discord.png", external: true },
   { href: "/agendar/historico", label: "Histórico", icon: History },

@@ -969,8 +969,9 @@ function MenteeCard({
       )}
 
       <div className="mt-3 space-y-2 border-t border-border pt-3">
+        <p className="text-xs font-medium text-muted-foreground">Links Importantes</p>
         {mentee.links.length === 0 && !showForm && (
-          <p className="text-xs text-muted-foreground">Nenhum link salvo.</p>
+          <p className="text-xs text-muted-foreground">Nenhum link salvo. Comece pelo doc da mentoria.</p>
         )}
 
         {mentee.links.map((link) => (
@@ -1009,11 +1010,11 @@ function MenteeCard({
             }}
             className="flex flex-wrap items-center gap-2 pt-1"
           >
-            <Input name="title" placeholder="Nome do documento" className="min-w-32 flex-1" required />
+            <Input name="title" placeholder="Nome (ex: Doc da mentoria)" className="min-w-32 flex-1" required />
             <Input
               name="url"
               type="url"
-              placeholder="Link do Google Docs, Sheets, Slides ou Drive"
+              placeholder="https://..."
               className="min-w-40 flex-1"
               required
             />
@@ -1036,7 +1037,7 @@ function MenteeCard({
             onClick={() => setShowForm(true)}
             className="gap-1.5 text-primary hover:text-primary"
           >
-            <Plus className="size-3.5" /> Adicionar Google Doc
+            <Plus className="size-3.5" /> Adicionar link
           </Button>
         )}
       </div>
