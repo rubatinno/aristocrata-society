@@ -91,6 +91,7 @@ export async function updateMenteeOverrides(
   if (error) throw new Error("Não foi possível salvar os ajustes.");
 
   revalidatePath("/dashboard/mentorados");
+  revalidatePath("/dashboard/aprovacoes");
   revalidatePath("/agendar");
 }
 
